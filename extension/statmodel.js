@@ -122,8 +122,20 @@ const round = (x, d = 6) => (Number.isFinite(x) ? Math.round(x * 10 ** d) / 10 *
 // Model
 // ---------------------------------------------------------------------------
 
+/** Label for a target: 1.01×, 1.1×, 2×. */
+export const lab = (x) => `${+x.toFixed(2)}×`;
+
+/** 1.01–1.10 (step 0.01), 1.2–2.0 (step 0.1), 3–10 (step 1): 27 targets. */
+export function defaultTargets() {
+  const t = [];
+  for (let i = 101; i <= 110; i++) t.push(i / 100);
+  for (let i = 12; i <= 20; i++) t.push(i / 10);
+  for (let i = 3; i <= 10; i++) t.push(i);
+  return t;
+}
+
 export const DEFAULTS = {
-  targets: [1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0],
+  targets: defaultTargets(),
   window: 10000,
   step: 10000,      // step for the chart series (window = step -> non-overlapping)
   houseEdge: 0.01,  // theoretical baseline p(x) = (1 - edge) / x
@@ -182,7 +194,7 @@ export function analyzeHistory(crashes, options = {}, onProgress) {
   const perTarget = [];
 
   for (const x of targets) {
-    progress(`Target ${x.toFixed(1)}×…`);
+    progress(`Target ${lab(x)}…`);
     let k = 0;
     for (let i = 0; i < N; i++) { const y = crashes[i] >= x - EPS ? 1 : 0; Y[i] = y; k += y; prefix[i + 1] = prefix[i] + y; }
     const p = k / N;
@@ -260,6 +272,14 @@ export function analyzeHistory(crashes, options = {}, onProgress) {
       };
       t.streaks = { loss: streak(longest0, 1 - p), win: streak(longest1, p) };
 
+      // ---- next round after a loss vs after a win ----
+      let am = 0, an = 0, bm = 0, bn = 0;
+      for (let i = 1; i < N; i++) { if (Y[i - 1]) { bn++; bm += Y[i]; } else { an++; am += Y[i]; } }
+      const pa = an ? am / an : 0, pb = bn ? bm / bn : 0, pPool = (am + bm) / (an + bn);
+      const zAfter = an && bn ? (pa - pb) / Math.sqrt(pPool * (1 - pPool) * (1 / an + 1 / bn)) : 0;
+      t.after = { loss: { hitRate: pa, n: an }, win: { hitRate: pb, n: bn }, z: zAfter, p: an && bn ? pTwo(zAfter) : null };
+      t.winsToCoverLoss = 1 / (x - 1);
+
       // ---- CUSUM change-point test ----
       let s = 0, dmax = 0, imax = 0;
       for (let i = 0; i < N; i++) { s += Y[i] - p; if (Math.abs(s) > dmax) { dmax = Math.abs(s); imax = i; } }
@@ -319,19 +339,20 @@ export function analyzeHistory(crashes, options = {}, onProgress) {
   progress("Multiple-testing correction…");
   const T = perTarget.filter((t) => t.x > 1);
   const families = {
-    "Hit rate vs baseline": T.map((t) => [`${t.x.toFixed(1)}×`, t.p, (a) => (t.pAdj = a)]),
-    "Window homogeneity": T.map((t) => [`${t.x.toFixed(1)}×`, t.windows.homogeneity.p, (a) => (t.windows.homogeneity.pAdj = a)]),
-    "Window trend": T.map((t) => [`${t.x.toFixed(1)}×`, t.windows.trend.p, (a) => (t.windows.trend.pAdj = a)]),
+    "Hit rate vs baseline": T.map((t) => [`${lab(t.x)}`, t.p, (a) => (t.pAdj = a)]),
+    "Window homogeneity": T.map((t) => [`${lab(t.x)}`, t.windows.homogeneity.p, (a) => (t.windows.homogeneity.pAdj = a)]),
+    "Window trend": T.map((t) => [`${lab(t.x)}`, t.windows.trend.p, (a) => (t.windows.trend.pAdj = a)]),
     "Autocorrelation (Ljung–Box)": [
-      ...T.map((t) => [`${t.x.toFixed(1)}×`, t.acf.ljungBox.p, (a) => (t.acf.ljungBox.pAdj = a)]),
+      ...T.map((t) => [`${lab(t.x)}`, t.acf.ljungBox.p, (a) => (t.acf.ljungBox.pAdj = a)]),
       ["multiplier (PIT)", uAcf.ljungBox.p, (a) => (uAcf.ljungBox.pAdj = a)],
     ],
-    "Runs test": T.map((t) => [`${t.x.toFixed(1)}×`, t.runs.p, (a) => (t.runs.pAdj = a)]),
+    "After a loss vs after a win": T.map((t) => [`${lab(t.x)}`, t.after.p, (a) => (t.after.pAdj = a)]),
+    "Runs test": T.map((t) => [`${lab(t.x)}`, t.runs.p, (a) => (t.runs.pAdj = a)]),
     "Longest streaks": T.flatMap((t) => [
-      [`${t.x.toFixed(1)}× losing streak`, t.streaks.loss.p, (a) => (t.streaks.loss.pAdj = a)],
-      [`${t.x.toFixed(1)}× winning streak`, t.streaks.win.p, (a) => (t.streaks.win.pAdj = a)],
+      [`${lab(t.x)} losing streak`, t.streaks.loss.p, (a) => (t.streaks.loss.pAdj = a)],
+      [`${lab(t.x)} winning streak`, t.streaks.win.p, (a) => (t.streaks.win.pAdj = a)],
     ]),
-    "Change point (CUSUM)": T.map((t) => [`${t.x.toFixed(1)}×`, t.cusum.p, (a) => (t.cusum.pAdj = a)]),
+    "Change point (CUSUM)": T.map((t) => [`${lab(t.x)}`, t.cusum.p, (a) => (t.cusum.pAdj = a)]),
     "Distribution": [
       ["fit to baseline", report.distribution.goodnessOfFit.p, (a) => (report.distribution.goodnessOfFit.pAdj = a)],
       ["first vs second half", report.distribution.halves.p, (a) => (report.distribution.halves.pAdj = a)],
@@ -361,11 +382,21 @@ export function analyzeHistory(crashes, options = {}, onProgress) {
   report.watch = tests.filter((t) => t.watch).map((t) =>
     `${t.family}: ${t.name} — stands out within its group (adjusted p = ${fmtP(t.pAdj)}) but not after correcting across all ${tests.length} tests (p = ${fmtP(t.pGlobal)}); consistent with chance.`);
   for (const t of T) for (const f of t.windows.flagged) {
-    anomalies.push(`Window ${f.rounds[0] ?? ""}–${f.rounds[1] ?? ""} at ${t.x.toFixed(1)}×: hit rate ${(100 * f.hitRate).toFixed(2)}% (z = ${f.z.toFixed(2)}, beyond Bonferroni limit ±${zBonf.toFixed(2)})`);
+    anomalies.push(`Window ${f.rounds[0] ?? ""}–${f.rounds[1] ?? ""} at ${lab(t.x)}: hit rate ${(100 * f.hitRate).toFixed(2)}% (z = ${f.z.toFixed(2)}, beyond Bonferroni limit ±${zBonf.toFixed(2)})`);
   }
   if (invalid) anomalies.unshift(`${invalid} invalid multipliers in the data`);
   report.anomalies = anomalies;
 
+  for (const t of T) {
+    const g = (family, suffix = "") => tests.find((x) => x.family === family && x.name === lab(t.x) + suffix)?.pGlobal;
+    t.score = targetScore({
+      baseline: g("Hit rate vs baseline"), after: g("After a loss vs after a win"), acf: g("Autocorrelation (Ljung–Box)"),
+      homogeneity: g("Window homogeneity"), trend: g("Window trend"), runs: g("Runs test"),
+      streaks: Math.min(g("Longest streaks", " losing streak") ?? 1, g("Longest streaks", " winning streak") ?? 1),
+    }, o.alpha);
+    const n = (v, one, many) => `${+v.toFixed(1)} ${+v.toFixed(1) === 1 ? one : many}`;
+    t.payoff = t.x < 2 ? `1 loss = ${n(t.winsToCoverLoss, "win", "wins")}` : `1 win = ${n(t.x - 1, "loss", "losses")}`;
+  }
   report.trust = trustScore(report, o.alpha);
   progress("");
   return report;
@@ -390,6 +421,30 @@ function acf(series, h, knownMean) {
   }
   Q *= N * (N + 2);
   return { lags: r, band: Z95 / Math.sqrt(N), ljungBox: { Q, df: h, p: chiSqSf(Q, h) } };
+}
+
+/**
+ * Per-target 10-point score: how normally this target behaved historically
+ * (matches the baseline, next round independent of the last, stable, normal
+ * streaks). Uses p-values corrected across all tests. It is NOT a profit score:
+ * under a fair game every target has the same expected return.
+ */
+export function targetScore(p, alpha = 0.05) {
+  // p: p-values for this target, corrected across all tests in the report.
+  const ok = (v) => v == null || v >= alpha;
+  const checks = [
+    ["Hit rate matches baseline", 3, ok(p.baseline)],
+    ["Next round independent of the last", 2, ok(p.after)],
+    ["No autocorrelation", 1, ok(p.acf)],
+    ["Stable across windows", 1, ok(p.homogeneity)],
+    ["No trend", 1, ok(p.trend)],
+    ["Runs normal", 1, ok(p.runs)],
+    ["Streaks normal", 1, ok(p.streaks)],
+  ];
+  return {
+    score: checks.reduce((a, [, pts, pass]) => a + (pass ? pts : 0), 0),
+    failed: checks.filter(([, , pass]) => !pass).map(([name]) => name),
+  };
 }
 
 /**
@@ -432,8 +487,8 @@ export function trustScore(report, alpha = 0.05) {
     },
     {
       name: "Rounds independent (autocorrelation)", max: 1,
-      score: passShare([...T.map((t) => t.acf.ljungBox.pAdj), report.dependence.multiplierAcf.ljungBox.pAdj]),
-      detail: "Ljung–Box tests on hit/miss sequences and multipliers.",
+      score: passShare([...T.map((t) => t.acf.ljungBox.pAdj), ...T.map((t) => t.after.pAdj), report.dependence.multiplierAcf.ljungBox.pAdj]),
+      detail: "Ljung–Box tests, and hit rate after a loss vs after a win.",
     },
     {
       name: "Runs and streaks normal", max: 1,
