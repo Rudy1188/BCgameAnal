@@ -1,47 +1,58 @@
 // "Last N rounds, payout < X" analysis, like bc.game's own stats table.
 
-export const COUNTS = [100, 500, 1000, 2000, 5000, 10000, 20000, 50000];
+export const COUNTS_POPUP = [100, 500, 1000, 2000, 5000, 10000, 50000];
+export const COUNTS_FULL = [100, 500, 1000, 2000, 5000, 10000, 50000, 100000, 500000, 1000000, 2000000, 5000000];
 export const POINTS = [1.3, 1.5, 2, 3, 5, 10, 20, 50, 100];
+export const DEFAULT_COUNT = 2000;
 
 /**
- * crashes: newest first. Splits the last `n` rounds into [1, point) and [point, ∞).
- * For each side: count, chance, longest streak (max combo) and current streak.
+ * crashes: newest first (array or Float64Array). Splits the last `n` rounds
+ * into [1, point) and [point, ∞): count, chance, longest streak, current streak.
  */
 export function analyze(crashes, n, point) {
-  const xs = crashes.slice(0, n);
-  const sides = [
-    { label: `[1, ${point})`, test: (x) => x < point, count: 0, maxCombo: 0, current: 0, cls: "lo" },
-    { label: `[${point}, ∞)`, test: (x) => x >= point, count: 0, maxCombo: 0, current: 0, cls: "hi" },
-  ];
-  for (const s of sides) {
-    let run = 0;
-    for (const x of xs) {
-      if (s.test(x)) { s.count++; run++; if (run > s.maxCombo) s.maxCombo = run; }
-      else run = 0;
-    }
-    // Current streak = run at the newest end.
-    let cur = 0;
-    for (const x of xs) { if (s.test(x)) cur++; else break; }
-    s.current = cur;
-    s.chance = xs.length ? (100 * s.count) / xs.length : 0;
+  const len = Math.min(n, crashes.length);
+  let below = 0, run = 0, runBelow = false, maxBelow = 0, maxAbove = 0;
+  for (let i = 0; i < len; i++) {
+    const isBelow = crashes[i] < point;
+    if (isBelow) below++;
+    if (i > 0 && isBelow === runBelow) run++;
+    else { run = 1; runBelow = isBelow; }
+    if (isBelow) { if (run > maxBelow) maxBelow = run; }
+    else if (run > maxAbove) maxAbove = run;
   }
-  return { total: xs.length, sides };
+  // Current streak = the run at the newest end.
+  let current = 0;
+  const firstBelow = len ? crashes[0] < point : false;
+  while (current < len && (crashes[current] < point) === firstBelow) current++;
+  const above = len - below;
+  const pct = (c) => (len ? (100 * c) / len : 0);
+  return {
+    total: len,
+    sides: [
+      { label: `[1, ${point})`, count: below, chance: pct(below), maxCombo: maxBelow, current: len && firstBelow ? current : 0, cls: "lo" },
+      { label: `[${point}, ∞)`, count: above, chance: pct(above), maxCombo: maxAbove, current: len && !firstBelow ? current : 0, cls: "hi" },
+    ],
+  };
 }
+
+const short = (n) => (n >= 1e6 ? n / 1e6 + "M" : n >= 1e3 ? n / 1e3 + "K" : String(n));
 
 /**
  * Builds the analysis panel inside `root`.
- * getCrashes() returns the crash points, newest first (may be shorter than N).
+ * getCrashes() returns the crash points, newest first (may be shorter than N while calculating).
+ * onChange({count, point}) is called whenever the selection changes.
  */
-export function createAnalysisPanel(root, getCrashes, { defaultCount = 2000, defaultPoint = 2, storageKey = "analysis", onChange } = {}) {
+export function createAnalysisPanel(root, getCrashes, { counts = COUNTS_FULL, storageKey = "analysis", onChange } = {}) {
   let saved = {};
   try { saved = JSON.parse(localStorage.getItem(storageKey) || "{}"); } catch {}
-  let count = saved.count ?? defaultCount;
-  let point = saved.point ?? defaultPoint;
+  let count = counts.includes(saved.count) ? saved.count : DEFAULT_COUNT;
+  let point = saved.point > 1 ? saved.point : 2;
+  let progress = "";
 
   root.innerHTML = `
     <div class="an-head">
       <span>Last</span>
-      <select class="an-count">${COUNTS.map((c) => `<option value="${c}">${c.toLocaleString()}</option>`).join("")}</select>
+      <select class="an-count">${counts.map((c) => `<option value="${c}">${c.toLocaleString()} (${short(c)})</option>`).join("")}</select>
       <span>rounds, payout &lt;</span>
       <input class="an-point" type="number" min="1.01" step="0.01">
     </div>
@@ -57,31 +68,40 @@ export function createAnalysisPanel(root, getCrashes, { defaultCount = 2000, def
   const $body = root.querySelector("tbody");
   const $note = root.querySelector(".an-note");
 
-  function render() {
+  function render(changed = false) {
     $c.value = String(count);
     $p.value = String(point);
     root.querySelectorAll("[data-p]").forEach((b) => b.classList.toggle("on", Number(b.dataset.p) === point));
     try { localStorage.setItem(storageKey, JSON.stringify({ count, point })); } catch {}
 
     const crashes = getCrashes();
-    if (!crashes.length) { $body.innerHTML = ""; $note.textContent = "No rounds yet."; return; }
-    const { total, sides } = analyze(crashes, count, point);
-    $body.innerHTML = sides.map((s) =>
-      `<tr><td class="${s.cls}">${s.label}</td><td>${s.chance.toFixed(2)}%</td><td>${s.count.toLocaleString()}</td><td>${s.maxCombo}</td><td>${s.current}</td></tr>`
-    ).join("");
-    $note.textContent = total < count ? `Only ${total.toLocaleString()} rounds calculated so far.` : "";
-    onChange?.({ count, point });
+    if (!crashes.length) {
+      $body.innerHTML = "";
+      $note.textContent = progress || "No rounds yet.";
+    } else {
+      const { total, sides } = analyze(crashes, count, point);
+      $body.innerHTML = sides.map((s) =>
+        `<tr><td class="${s.cls}">${s.label}</td><td>${s.chance.toFixed(2)}%</td><td>${s.count.toLocaleString()}</td><td>${s.maxCombo}</td><td>${s.current}</td></tr>`
+      ).join("");
+      $note.textContent = total < count ? progress || `Only ${total.toLocaleString()} rounds calculated so far.` : "";
+    }
+    if (changed) onChange?.({ count, point });
   }
 
-  $c.onchange = () => { count = Number($c.value); render(); };
+  $c.onchange = () => { count = Number($c.value); render(true); };
   $p.onchange = () => {
     const v = Number($p.value);
-    if (v > 1) { point = Math.round(v * 100) / 100; render(); }
+    if (v > 1) { point = Math.round(v * 100) / 100; render(true); }
   };
-  root.querySelectorAll("[data-p]").forEach((b) => (b.onclick = () => { point = Number(b.dataset.p); render(); }));
+  root.querySelectorAll("[data-p]").forEach((b) => (b.onclick = () => { point = Number(b.dataset.p); render(true); }));
 
   render();
-  return { render, get count() { return count; }, get point() { return point; } };
+  return {
+    render,
+    setProgress(text) { progress = text; render(); },
+    get count() { return count; },
+    get point() { return point; },
+  };
 }
 
 export const ANALYSIS_CSS = `

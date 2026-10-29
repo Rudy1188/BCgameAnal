@@ -5,20 +5,17 @@
 <title>BC Crash Hash</title>
 <link rel="stylesheet" href="style.css">
 <style>
-  body { width:480px; }
-  .recent { display:flex; flex-wrap:wrap; gap:4px; }
-  .recent span { font-size:11px; font-weight:700; padding:2px 6px; border-radius:4px; background:var(--bg); border:1px solid var(--line); font-variant-numeric:tabular-nums; }
+  body { width:520px; }
+  #autoStatus { margin:0 0 10px; }
 </style>
 </head>
 <body>
 <main>
   <h1>BC Crash Hash <button class="link" id="reset" title="Forget the saved round">Reset</button></h1>
-
-  <button id="getLatest" class="primary">Get latest round</button>
-  <div class="status" id="getStatus"></div>
+  <div class="status" id="autoStatus"></div>
 
   <section class="card">
-    <div id="empty" class="empty">No round yet. Open <b>bc.game/game/crash</b> and click <b>Get latest round</b>.</div>
+    <div id="empty" class="empty">No round yet. Open <b>bc.game/game/crash</b>, then open this popup again.</div>
     <div id="latest" hidden>
       <div class="top">
         <div class="round">Round <b id="roundId"></b></div>
@@ -30,15 +27,15 @@
     </div>
   </section>
 
+  <section class="card" id="trendCard" hidden>
+    <h2>Trend</h2>
+    <div id="trend"></div>
+  </section>
+
   <section class="card" id="analysisCard" hidden>
     <h2>Analysis</h2>
     <div id="analysis"></div>
-  </section>
-
-  <section class="card" id="recentCard" hidden>
-    <h2>Last 20 rounds <span class="muted">(newest first)</span></h2>
-    <div class="recent" id="recent"></div>
-    <button class="primary secondary" id="openFull" style="margin-top:10px">Open full history (up to 50,000 rounds)</button>
+    <button class="primary secondary" id="openFull" style="margin-top:10px">Open full history (up to 5,000,000 rounds)</button>
   </section>
 
   <details class="card">

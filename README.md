@@ -13,13 +13,15 @@ Runs in your own browser on `bc.game`, picks up the latest Crash round, and show
 
 ### Use
 1. Open https://bc.game/game/crash (reload the tab after installing or updating the extension).
-2. Click the extension icon, then **Get latest round**. It opens the newest round in the page's result strip, reads its **Round ID / Salt / Hash** box, and closes it.
+2. Click the extension icon. Every time the popup opens, it fetches the newest round from the bc.game tab: it opens the newest result in the page's result strip, reads its **Round ID / Salt / Hash** box, and closes it.
 3. New rounds are also picked up on their own, whenever a round's details box is open or the page's data contains a hash that chains back to the saved one (SHA-256).
-4. The popup shows the latest round, copy buttons for the hash/salt, the last 20 rounds, and an **Analysis** panel. The icon badge shows the latest crash point.
-5. **Open full history** opens a tab with up to 50,000 rounds (paged, searchable by round ID, CSV download), the same analysis panel, and an overview of every payout point.
+4. The popup shows the latest round, a **Trend** panel and an **Analysis** panel (up to 50,000 rounds). The icon badge shows the latest crash point.
+5. **Open full history** opens a tab for long-range work: up to **5,000,000 rounds** (1M takes about 6–10 s, calculated in the background), trend, analysis, an overview of every payout point, and a paged table with find-by-round and CSV.
+
+All panels default to the last **2,000** rounds.
 
 ### Analysis panel
-Pick how many rounds (100 to 50,000) and a payout point (1.3×, 1.5×, 2×, 3×, 5×, 10×, … or type any value). It shows, like bc.game's own stats table:
+Pick how many rounds and a payout point (1.3×, 1.5×, 2×, 3×, 5×, 10×, … or type any value). It shows, like bc.game's own stats table:
 
 | Range | Chance | Count | Max Combo | Current |
 |---|---|---|---|---|
@@ -28,7 +30,13 @@ Pick how many rounds (100 to 50,000) and a payout point (1.3×, 1.5×, 2×, 3×,
 
 **Max Combo** is the longest run of rounds in a row in that range; **Current** is the run going on right now.
 
-If **Get latest round** fails, the popup shows what it found on the page (useful for fixing it), and you can still enter a round by hand.
+### Trend panel
+Uses the same rounds and payout point as the analysis panel.
+- **Beads**: a dot per round, red below the payout point and green at or above it, one column per streak (long streaks continue in the next column).
+- **Chart**: multiplier bars on a log scale, a dashed line at the payout point, and a blue line for the share of rounds at or above it. Choose how many rounds fit on screen (100 to 1,000,000).
+- Drag the slider left to go back through history; hover a dot or bar to see its round.
+
+If the popup can't read the bc.game tab, it shows what it found on the page (useful for fixing it), and you can still enter a round by hand.
 
 ## Node calculator (`src/`, `public/`)
 
