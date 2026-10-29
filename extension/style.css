@@ -1,0 +1,34 @@
+:root { --bg:#0f1115; --panel:#181b22; --line:#2a2f3a; --text:#e6e8ee; --muted:#8a91a3;
+        --low:#ff6b6b; --high:#4fd18b; --big:#f5c451; --accent:#4f8cff; }
+* { box-sizing:border-box; }
+body { margin:0; font:13px/1.45 system-ui, sans-serif; background:var(--bg); color:var(--text); }
+main { padding:14px; }
+h1 { font-size:15px; margin:0 0 10px; display:flex; justify-content:space-between; align-items:center; gap:10px; }
+h2 { font-size:13px; margin:0 0 8px; }
+.muted { color:var(--muted); font-weight:400; }
+.card { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px; margin-bottom:10px; }
+.top { display:flex; justify-content:space-between; align-items:baseline; }
+.round { color:var(--muted); }
+.round b { color:var(--text); font-size:16px; }
+.crash { font-size:26px; font-weight:700; font-variant-numeric:tabular-nums; }
+.field { margin-top:8px; }
+.field span { color:var(--muted); font-size:11px; display:flex; justify-content:space-between; }
+code { display:block; font:11px ui-monospace, Consolas, monospace; word-break:break-all; color:var(--text); margin-top:2px; }
+.status { margin-top:8px; font-size:11px; color:var(--muted); white-space:pre-wrap; }
+.status:empty { display:none; }
+.ok { color:var(--high); } .warn { color:var(--big); } .err { color:var(--low); }
+.lo { color:var(--low); } .hi { color:var(--high); } .bg { color:var(--big); }
+button { font:inherit; color:var(--text); background:#252a35; border:1px solid var(--line); border-radius:5px; padding:3px 9px; cursor:pointer; }
+button:hover { background:#2f3542; }
+button.link { background:none; border:0; color:var(--accent); padding:0; font-size:11px; }
+button.primary { width:100%; padding:9px; font-weight:600; color:#fff; background:var(--accent); border:0; border-radius:6px; }
+button.primary:hover { background:#3d7af0; }
+button.primary:disabled { opacity:.6; cursor:wait; }
+button.secondary { background:#252a35; border:1px solid var(--line); color:var(--text); font-weight:500; }
+button.secondary:hover { background:#2f3542; }
+#getStatus { margin:6px 0 10px; }
+input { font:12px ui-monospace, Consolas, monospace; color:var(--text); background:var(--bg); border:1px solid var(--line);
+        border-radius:5px; padding:5px 7px; width:100%; }
+.row { display:flex; gap:6px; align-items:center; margin-top:6px; }
+details summary { cursor:pointer; color:var(--muted); font-size:12px; }
+.empty { color:var(--muted); }

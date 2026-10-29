@@ -3,48 +3,11 @@
 <head>
 <meta charset="utf-8">
 <title>BC Crash Hash</title>
+<link rel="stylesheet" href="style.css">
 <style>
-  :root { --bg:#0f1115; --panel:#181b22; --line:#2a2f3a; --text:#e6e8ee; --muted:#8a91a3;
-          --low:#ff6b6b; --high:#4fd18b; --big:#f5c451; --accent:#4f8cff; }
-  * { box-sizing:border-box; }
-  body { margin:0; width:460px; font:13px/1.45 system-ui, sans-serif; background:var(--bg); color:var(--text); }
-  main { padding:14px; }
-  h1 { font-size:15px; margin:0 0 10px; display:flex; justify-content:space-between; align-items:center; }
-  .card { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px; margin-bottom:10px; }
-  .top { display:flex; justify-content:space-between; align-items:baseline; }
-  .round { color:var(--muted); }
-  .round b { color:var(--text); font-size:16px; }
-  .crash { font-size:26px; font-weight:700; font-variant-numeric:tabular-nums; }
-  .field { margin-top:8px; }
-  .field span { color:var(--muted); font-size:11px; display:flex; justify-content:space-between; }
-  code { display:block; font:11px ui-monospace, Consolas, monospace; word-break:break-all; color:var(--text); margin-top:2px; }
-  .status { margin-top:8px; font-size:11px; color:var(--muted); }
-  .ok { color:var(--high); } .warn { color:var(--big); }
-  .lo { color:var(--low); } .hi { color:var(--high); } .bg { color:var(--big); }
-  button { font:inherit; color:var(--text); background:#252a35; border:1px solid var(--line); border-radius:5px; padding:3px 9px; cursor:pointer; }
-  button:hover { background:#2f3542; }
-  button.link { background:none; border:0; color:var(--accent); padding:0; font-size:11px; }
-  input { font:12px ui-monospace, Consolas, monospace; color:var(--text); background:var(--bg); border:1px solid var(--line);
-          border-radius:5px; padding:5px 7px; width:100%; }
-  .row { display:flex; gap:6px; align-items:center; margin-top:6px; }
-  .stats { display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; margin:8px 0; }
-  .stat { background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:5px 7px; }
-  .stat b { display:block; font-size:14px; font-variant-numeric:tabular-nums; }
-  .stat span { color:var(--muted); font-size:10px; }
-  .tablewrap { max-height:260px; overflow-y:auto; }
-  table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
-  th, td { text-align:left; padding:3px 6px; border-bottom:1px solid var(--line); }
-  th { color:var(--muted); font-weight:500; font-size:11px; position:sticky; top:0; background:var(--panel); }
-  td.h { font:10px ui-monospace, Consolas, monospace; color:var(--muted); }
-  td.x { font-weight:700; }
-  details summary { cursor:pointer; color:var(--muted); font-size:12px; }
-  button.primary { width:100%; padding:9px; font-weight:600; color:#fff; background:var(--accent); border:0; border-radius:6px; }
-  button.primary:hover { background:#3d7af0; }
-  button.primary:disabled { opacity:.6; cursor:wait; }
-  #getStatus { margin:6px 0 10px; white-space:pre-wrap; }
-  #getStatus:empty { display:none; }
-  .err { color:var(--low); }
-  .empty { color:var(--muted); }
+  body { width:480px; }
+  .recent { display:flex; flex-wrap:wrap; gap:4px; }
+  .recent span { font-size:11px; font-weight:700; padding:2px 6px; border-radius:4px; background:var(--bg); border:1px solid var(--line); font-variant-numeric:tabular-nums; }
 </style>
 </head>
 <body>
@@ -54,10 +17,8 @@
   <button id="getLatest" class="primary">Get latest round</button>
   <div class="status" id="getStatus"></div>
 
-  <section class="card" id="latestCard">
-    <div id="empty" class="empty">
-      No round yet. Open <b>bc.game/game/crash</b> and click <b>Get latest round</b>.
-    </div>
+  <section class="card">
+    <div id="empty" class="empty">No round yet. Open <b>bc.game/game/crash</b> and click <b>Get latest round</b>.</div>
     <div id="latest" hidden>
       <div class="top">
         <div class="round">Round <b id="roundId"></b></div>
@@ -69,20 +30,15 @@
     </div>
   </section>
 
-  <section class="card" id="historyCard" hidden>
-    <div class="row" style="margin-top:0">
-      <span style="color:var(--muted)">Earlier rounds</span>
-      <input id="count" type="number" min="1" max="5000" value="100" style="width:80px; margin-left:auto">
-      <button id="calc">Calculate</button>
-      <button id="csv">CSV</button>
-    </div>
-    <div class="stats" id="stats"></div>
-    <div class="tablewrap">
-      <table>
-        <thead><tr><th>Round</th><th>Crash</th><th>Hash</th></tr></thead>
-        <tbody id="rows"></tbody>
-      </table>
-    </div>
+  <section class="card" id="analysisCard" hidden>
+    <h2>Analysis</h2>
+    <div id="analysis"></div>
+  </section>
+
+  <section class="card" id="recentCard" hidden>
+    <h2>Last 20 rounds <span class="muted">(newest first)</span></h2>
+    <div class="recent" id="recent"></div>
+    <button class="primary secondary" id="openFull" style="margin-top:10px">Open full history (up to 50,000 rounds)</button>
   </section>
 
   <details class="card">

@@ -1,22 +1,28 @@
 import { DEFAULT_SALT, crashPoint, history, isHash } from "./crash.js";
+import { COUNTS, ANALYSIS_CSS, createAnalysisPanel } from "./analysis.js";
 
 const $ = (id) => document.getElementById(id);
 const fmt = (x) => x.toFixed(2) + "×";
 const tone = (x) => (x >= 10 ? "bg" : x >= 2 ? "hi" : "lo");
+const MAX = COUNTS[COUNTS.length - 1];
+
+document.head.append(Object.assign(document.createElement("style"), { textContent: ANALYSIS_CSS }));
+
 let latest = null;
-let rounds = [];
+let crashes = []; // newest first
+let computedFor = "";
+const panel = createAnalysisPanel($("analysis"), () => crashes, { storageKey: "popup-analysis" });
 
 const SOURCES = { dom: "round details box", json: "page data", loose: "page data", manual: "entered by hand" };
-
-function ago(t) {
+const ago = (t) => {
   const s = Math.round((Date.now() - t) / 1000);
   return s < 60 ? `${s}s ago` : s < 3600 ? `${Math.round(s / 60)} min ago` : new Date(t).toLocaleString();
-}
+};
 
 function showLatest() {
   $("empty").hidden = !!latest;
   $("latest").hidden = !latest;
-  $("historyCard").hidden = !latest;
+  $("analysisCard").hidden = $("recentCard").hidden = !latest;
   if (!latest) return;
   $("roundId").textContent = latest.roundId ?? "unknown";
   $("crash").textContent = fmt(latest.crash);
@@ -28,28 +34,29 @@ function showLatest() {
     ` · from ${SOURCES[latest.source] ?? latest.source} · ${ago(latest.seenAt)}`;
 }
 
-async function calculate() {
-  if (!latest) return;
-  const count = Math.min(5000, Math.max(1, Number($("count").value) || 100));
-  rounds = await history(latest.hash, count, latest.roundId, latest.salt);
-  const xs = rounds.map((r) => r.crash);
-  const sorted = [...xs].sort((a, b) => a - b);
-  const pct = (n) => ((100 * n) / xs.length).toFixed(1) + "%";
-  $("stats").innerHTML = [
-    ["Median", fmt(sorted[Math.floor(sorted.length / 2)]), ""],
-    ["Below 2×", pct(xs.filter((x) => x < 2).length), "lo"],
-    ["2× and up", pct(xs.filter((x) => x >= 2).length), "hi"],
-    ["10× and up", pct(xs.filter((x) => x >= 10).length), "bg"],
-  ].map(([k, v, c]) => `<div class="stat"><b class="${c}">${v}</b><span>${k}</span></div>`).join("");
-  $("rows").innerHTML = rounds
-    .map((r) => `<tr><td>${r.roundId ?? ""}</td><td class="x ${tone(r.crash)}">${fmt(r.crash)}</td><td class="h">${r.hash.slice(0, 20)}…</td></tr>`)
-    .join("");
+async function compute() {
+  if (!latest) { crashes = []; panel.render(); return; }
+  const key = latest.hash + latest.salt;
+  if (key === computedFor) return;
+  computedFor = key;
+  // Show a quick result first, then fill in the rest.
+  crashes = (await history(latest.hash, 2000, latest.roundId, latest.salt)).map((r) => r.crash);
+  renderRecent();
+  panel.render();
+  const all = await history(latest.hash, MAX, latest.roundId, latest.salt);
+  if (computedFor !== key) return;
+  crashes = all.map((r) => r.crash);
+  panel.render();
+}
+
+function renderRecent() {
+  $("recent").innerHTML = crashes.slice(0, 20).map((x) => `<span class="${tone(x)}">${fmt(x)}</span>`).join("");
 }
 
 async function load() {
   ({ latest = null } = await chrome.storage.local.get("latest"));
   showLatest();
-  await calculate();
+  await compute();
 }
 
 chrome.storage.onChanged.addListener((changes) => {
@@ -88,25 +95,20 @@ $("getLatest").onclick = async () => {
   setGetStatus("");
   try {
     const tab = await findBcTab();
-    if (!tab) {
-      setGetStatus("Open https://bc.game/game/crash in this window first.", "err");
-      return;
-    }
+    if (!tab) return setGetStatus("Open https://bc.game/game/crash in this window first.", "err");
     const res = await askTab(tab.id);
     if (!res?.ok) {
       const d = res?.debug ?? {};
-      setGetStatus(
+      return setGetStatus(
         `${res?.error ?? "No answer from the bc.game tab. Reload the tab and try again."}\n` +
           `Details: page ${d.url ?? tab.url}, history items found ${d.historyItems ?? 0}, ` +
           `page-data hashes seen ${d.pageHashes ?? 0}${d.tried?.length ? `, tried: ${d.tried.join("; ")}` : ""}`,
         "err"
       );
-      return;
     }
-    // Save it directly too, in case it is the same as or older than what's stored.
     const r = res.round;
     const salt = r.salt || latest?.salt || DEFAULT_SALT;
-    const entry = { roundId: r.roundId, hash: r.hash, salt, crash: await crashPoint(r.hash, salt), verified: false, source: "dom", seenAt: Date.now() };
+    const entry = { roundId: r.roundId, hash: r.hash, salt, crash: crashPoint(r.hash, salt), verified: false, source: "dom", seenAt: Date.now() };
     if (!latest || latest.roundId == null || r.roundId >= latest.roundId) {
       if (latest?.hash === r.hash) entry.verified = latest.verified;
       await chrome.storage.local.set({ latest: entry, salt });
@@ -121,8 +123,9 @@ $("getLatest").onclick = async () => {
   }
 };
 
-$("calc").onclick = calculate;
-$("count").onkeydown = (e) => e.key === "Enter" && calculate();
+// ---- Other buttons ----
+
+$("openFull").onclick = () => chrome.tabs.create({ url: chrome.runtime.getURL("full.html") });
 
 document.querySelectorAll("[data-copy]").forEach((b) => {
   b.onclick = async () => {
@@ -132,20 +135,11 @@ document.querySelectorAll("[data-copy]").forEach((b) => {
   };
 });
 
-$("csv").onclick = () => {
-  const csv = "round,crash,hash\n" + rounds.map((r) => `${r.roundId ?? ""},${r.crash},${r.hash}`).join("\n");
-  const a = Object.assign(document.createElement("a"), {
-    href: URL.createObjectURL(new Blob([csv], { type: "text/csv" })),
-    download: `crash-rounds-${latest?.roundId ?? "latest"}.csv`,
-  });
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-};
-
 $("reset").onclick = async () => {
   await chrome.runtime.sendMessage({ type: "reset" });
   latest = null;
-  rounds = [];
+  computedFor = "";
+  crashes = [];
   showLatest();
 };
 
@@ -157,16 +151,10 @@ $("mSave").onclick = async () => {
   if (!isHash(salt)) return ($("mError").textContent = "Salt must be 64 hex characters.");
   if (roundText && !/^\d+$/.test(roundText)) return ($("mError").textContent = "Round ID must be a number.");
   $("mError").textContent = "";
-  const entry = {
-    roundId: roundText ? Number(roundText) : null,
-    hash,
+  await chrome.storage.local.set({
+    latest: { roundId: roundText ? Number(roundText) : null, hash, salt, crash: crashPoint(hash, salt), verified: false, source: "manual", seenAt: Date.now() },
     salt,
-    crash: await crashPoint(hash, salt),
-    verified: false,
-    source: "manual",
-    seenAt: Date.now(),
-  };
-  await chrome.storage.local.set({ latest: entry, salt });
+  });
 };
 
 load();

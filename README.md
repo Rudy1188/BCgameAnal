@@ -15,7 +15,18 @@ Runs in your own browser on `bc.game`, picks up the latest Crash round, and show
 1. Open https://bc.game/game/crash (reload the tab after installing or updating the extension).
 2. Click the extension icon, then **Get latest round**. It opens the newest round in the page's result strip, reads its **Round ID / Salt / Hash** box, and closes it.
 3. New rounds are also picked up on their own, whenever a round's details box is open or the page's data contains a hash that chains back to the saved one (SHA-256).
-4. The popup shows the latest round, copy buttons for the hash/salt, and earlier rounds (with a CSV download). The icon badge shows the latest crash point.
+4. The popup shows the latest round, copy buttons for the hash/salt, the last 20 rounds, and an **Analysis** panel. The icon badge shows the latest crash point.
+5. **Open full history** opens a tab with up to 50,000 rounds (paged, searchable by round ID, CSV download), the same analysis panel, and an overview of every payout point.
+
+### Analysis panel
+Pick how many rounds (100 to 50,000) and a payout point (1.3×, 1.5×, 2×, 3×, 5×, 10×, … or type any value). It shows, like bc.game's own stats table:
+
+| Range | Chance | Count | Max Combo | Current |
+|---|---|---|---|---|
+| [1, 2) | 48.20% | 964 | 9 | 0 |
+| [2, ∞) | 51.80% | 1036 | 11 | 1 |
+
+**Max Combo** is the longest run of rounds in a row in that range; **Current** is the run going on right now.
 
 If **Get latest round** fails, the popup shows what it found on the page (useful for fixing it), and you can still enter a round by hand.
 
