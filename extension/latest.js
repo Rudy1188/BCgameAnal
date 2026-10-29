@@ -49,5 +49,6 @@ export async function updateFromTab(current) {
     await chrome.storage.local.set({ latest: { roundId: r.roundId, hash: r.hash, salt, crash, verified, source: "dom", seenAt: Date.now() }, salt });
   }
   const check = r.shownCrash != null && Math.abs(r.shownCrash - crash) < 0.005 ? ` ✔ matches bc.game` : "";
-  return { ok: true, cls: "ok", message: `Updated from bc.game: round ${r.roundId}, ${crash.toFixed(2)}×${check}` };
+  const warn = res.warning ? `\n${res.warning}` : "";
+  return { ok: true, cls: warn ? "warn" : "ok", message: `Updated from bc.game: round ${r.roundId}, ${crash.toFixed(2)}×${check}${warn}` };
 }
