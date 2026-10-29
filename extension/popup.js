@@ -56,6 +56,71 @@ chrome.storage.onChanged.addListener((changes) => {
   if (changes.latest) load();
 });
 
+// ---- "Get latest round" ----
+
+async function findBcTab() {
+  const [active] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (active?.url && /^https:\/\/([a-z0-9-]+\.)*bc\.game\//i.test(active.url)) return active;
+  const tabs = await chrome.tabs.query({ url: ["https://bc.game/*", "https://*.bc.game/*"] });
+  return tabs.find((t) => /\/game\/crash/.test(t.url ?? "")) ?? tabs[0] ?? null;
+}
+
+async function askTab(tabId) {
+  try {
+    return await chrome.tabs.sendMessage(tabId, { type: "getLatest" });
+  } catch {
+    // The tab was open before the extension was installed/reloaded: start it now.
+    await chrome.scripting.executeScript({ target: { tabId }, files: ["inject.js"], world: "MAIN" });
+    await chrome.scripting.executeScript({ target: { tabId }, files: ["content.js"] });
+    return await chrome.tabs.sendMessage(tabId, { type: "getLatest" });
+  }
+}
+
+function setGetStatus(html, cls = "") {
+  $("getStatus").className = "status " + cls;
+  $("getStatus").innerHTML = html;
+}
+
+$("getLatest").onclick = async () => {
+  const btn = $("getLatest");
+  btn.disabled = true;
+  btn.textContent = "Getting latest round…";
+  setGetStatus("");
+  try {
+    const tab = await findBcTab();
+    if (!tab) {
+      setGetStatus("Open https://bc.game/game/crash in this window first.", "err");
+      return;
+    }
+    const res = await askTab(tab.id);
+    if (!res?.ok) {
+      const d = res?.debug ?? {};
+      setGetStatus(
+        `${res?.error ?? "No answer from the bc.game tab. Reload the tab and try again."}\n` +
+          `Details: page ${d.url ?? tab.url}, history items found ${d.historyItems ?? 0}, ` +
+          `page-data hashes seen ${d.pageHashes ?? 0}${d.tried?.length ? `, tried: ${d.tried.join("; ")}` : ""}`,
+        "err"
+      );
+      return;
+    }
+    // Save it directly too, in case it is the same as or older than what's stored.
+    const r = res.round;
+    const salt = r.salt || latest?.salt || DEFAULT_SALT;
+    const entry = { roundId: r.roundId, hash: r.hash, salt, crash: await crashPoint(r.hash, salt), verified: false, source: "dom", seenAt: Date.now() };
+    if (!latest || latest.roundId == null || r.roundId >= latest.roundId) {
+      if (latest?.hash === r.hash) entry.verified = latest.verified;
+      await chrome.storage.local.set({ latest: entry, salt });
+    }
+    const check = r.shownCrash != null && Math.abs(r.shownCrash - entry.crash) < 0.005 ? ` ✔ matches bc.game's ${fmt(r.shownCrash)}` : "";
+    setGetStatus(`Got round ${r.roundId}: ${fmt(entry.crash)}${check}`, "ok");
+  } catch (e) {
+    setGetStatus(`Failed: ${e.message}. Reload the bc.game tab and try again.`, "err");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Get latest round";
+  }
+};
+
 $("calc").onclick = calculate;
 $("count").onkeydown = (e) => e.key === "Enter" && calculate();
 

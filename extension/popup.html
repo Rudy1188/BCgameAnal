@@ -38,6 +38,12 @@
   td.h { font:10px ui-monospace, Consolas, monospace; color:var(--muted); }
   td.x { font-weight:700; }
   details summary { cursor:pointer; color:var(--muted); font-size:12px; }
+  button.primary { width:100%; padding:9px; font-weight:600; color:#fff; background:var(--accent); border:0; border-radius:6px; }
+  button.primary:hover { background:#3d7af0; }
+  button.primary:disabled { opacity:.6; cursor:wait; }
+  #getStatus { margin:6px 0 10px; white-space:pre-wrap; }
+  #getStatus:empty { display:none; }
+  .err { color:var(--low); }
   .empty { color:var(--muted); }
 </style>
 </head>
@@ -45,10 +51,12 @@
 <main>
   <h1>BC Crash Hash <button class="link" id="reset" title="Forget the saved round">Reset</button></h1>
 
+  <button id="getLatest" class="primary">Get latest round</button>
+  <div class="status" id="getStatus"></div>
+
   <section class="card" id="latestCard">
     <div id="empty" class="empty">
-      No round yet. Open <b>bc.game/game/crash</b> and click the latest round in the history once, so its
-      Round ID / Salt / Hash box shows. After that, new rounds are picked up automatically.
+      No round yet. Open <b>bc.game/game/crash</b> and click <b>Get latest round</b>.
     </div>
     <div id="latest" hidden>
       <div class="top">

@@ -2,6 +2,8 @@
 // (fetch, XHR, WebSocket) for round hashes and passes them to content.js.
 // It only reads; it never sends anything to bc.game.
 (() => {
+  if (window.__bcCrashHashInject) return;
+  window.__bcCrashHashInject = true;
   const HEX64 = /^[0-9a-f]{64}$/i;
   const seen = new Set();
 
