@@ -14,6 +14,17 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
     queue = queue.then(() => handle(msg)).catch((e) => console.warn("BC Crash Hash:", e));
     return;
   }
+  if (msg?.type === "stripRounds" && Array.isArray(msg.crashes)) {
+    // New results read from the page strip, not yet confirmed by a hash.
+    queue = queue.then(async () => {
+      const { pending = [] } = await chrome.storage.local.get("pending");
+      const now = Date.now();
+      for (const c of msg.crashes) if (c >= 1 && c < 1e7) pending.push({ c, at: now });
+      await chrome.storage.local.set({ pending: pending.slice(-5000) });
+      await setBadge(msg.crashes[msg.crashes.length - 1]);
+    }).catch((e) => console.warn("BC Crash Hash:", e));
+    return;
+  }
   if (msg?.type === "reset") {
     queue = queue.then(() => chrome.storage.local.clear()).then(() => setBadge(null)).then(() => reply({ ok: true }));
     return true;
@@ -50,7 +61,8 @@ async function handle(c) {
   next.crash = await crashPoint(hash, salt);
   next.salt = salt;
   next.seenAt = Date.now();
-  await chrome.storage.local.set({ latest: next });
+  // The new hash covers every round up to now, so unconfirmed strip rounds are no longer needed.
+  await chrome.storage.local.set({ latest: next, pending: [] });
   await setBadge(next.crash);
 }
 

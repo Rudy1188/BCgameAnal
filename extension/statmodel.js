@@ -520,3 +520,87 @@ export function trustScore(report, alpha = 0.05) {
 }
 
 export const fmtP = (p) => (p == null ? "–" : p < 1e-4 ? p.toExponential(1) : p.toFixed(4));
+
+// ---------------------------------------------------------------------------
+// Live score (fast, graded) — recalculated every round
+// ---------------------------------------------------------------------------
+
+/**
+ * Graded 0–10 score per target over the last `n` rounds.
+ * Each check turns a z-statistic (how many standard deviations the point is
+ * from what a fair game expects) into points: z = 0 gives full points, |z| ≥ 4
+ * gives none. On fair data scores typically land between 7 and 10 and move
+ * with ordinary randomness. A score says how normal a point looked, never
+ * which point will pay.
+ *
+ * crashes: newest first. Fast: no autocorrelation beyond lag 1, ~27·n work.
+ */
+export function liveScores(crashes, n, { targets = defaultTargets(), houseEdge = 0.01 } = {}) {
+  const N = Math.min(n, crashes.length);
+  const out = [];
+  if (N < 50) return out;
+  const pts = (z, w) => w * Math.max(0, 1 - Math.abs(z) / 4);
+  const zFromP = (p) => (p >= 1 ? 0 : p <= 0 ? 8 : normalInv(1 - p / 2));
+  const M = N >= 1000 ? 10 : 0; // windows for stability/trend
+  const size = M ? Math.floor(N / M) : 0;
+  for (const x of targets) {
+    if (x <= 1) continue;
+    const p0 = theoryHit(x, houseEdge);
+    // Walk oldest -> newest (index N-1 down to 0).
+    let k = 0, runs = 0, prev = -1, cur = 0, longestLoss = 0;
+    let al = 0, alHit = 0, aw = 0, awHit = 0, lag = 0;
+    const win = M ? new Float64Array(M) : null;
+    for (let j = N - 1; j >= 0; j--) {
+      const y = crashes[j] >= x - EPS ? 1 : 0;
+      k += y;
+      if (prev === -1) { runs = 1; cur = 1; }
+      else {
+        if (prev) { aw++; awHit += y; } else { al++; alHit += y; }
+        if (y === prev) cur++; else { runs++; cur = 1; }
+        lag += (prev - p0) * (y - p0);
+      }
+      if (!y && cur > longestLoss) longestLoss = cur;
+      if (M) { const w = Math.min(M - 1, Math.floor((N - 1 - j) / size)); win[w] += y; }
+      prev = y;
+    }
+    const p = k / N;
+    const parts = [];
+    // Hit rate vs fair game (3)
+    const zHit = (p - p0) / Math.sqrt((p0 * (1 - p0)) / N);
+    parts.push({ name: "Hit rate vs fair game", z: zHit, max: 3 });
+    // Next round after a loss vs after a win (2)
+    const pa = al ? alHit / al : 0, pb = aw ? awHit / aw : 0;
+    const zAfter = al && aw ? (pa - pb) / Math.sqrt(p0 * (1 - p0) * (1 / al + 1 / aw)) : 0;
+    parts.push({ name: "After a loss = after a win", z: zAfter, max: 2 });
+    // Lag-1 autocorrelation (1)
+    const r1 = lag / (N - 1) / (p0 * (1 - p0));
+    parts.push({ name: "No autocorrelation", z: r1 * Math.sqrt(N), max: 1 });
+    // Runs (1)
+    const n1 = k, n0 = N - k;
+    const mu = (2 * n1 * n0) / N + 1, varR = ((mu - 1) * (mu - 2)) / (N - 1);
+    parts.push({ name: "Normal runs", z: varR > 0 ? (runs - mu) / Math.sqrt(varR) : 0, max: 1 });
+    // Longest losing streak (1)
+    const q = 1 - p0, lam = (L) => N * p0 * q ** L;
+    const pStreak = Math.min(1, 2 * Math.min(1 - Math.exp(-lam(longestLoss)), Math.exp(-lam(longestLoss + 1))));
+    parts.push({ name: "Normal losing streak", z: zFromP(pStreak), max: 1 });
+    // Stability and trend across 10 windows (1 + 1)
+    if (M) {
+      let chi = 0, sxx = 0, sxy = 0;
+      const rates = Array.from(win, (v) => v / size);
+      const mean = rates.reduce((a, v) => a + v, 0) / M;
+      rates.forEach((r, i) => { chi += ((r - p0) ** 2 * size) / (p0 * (1 - p0)); sxx += (i - 4.5) ** 2; sxy += (i - 4.5) * (r - mean); });
+      parts.push({ name: "Stable over time", z: Math.max(0, normalInv(1 - chiSqSf(chi, M))), max: 1 });
+      parts.push({ name: "No trend", z: sxy / sxx / Math.sqrt((p0 * (1 - p0)) / size / sxx), max: 1 });
+    }
+    const maxTotal = parts.reduce((a, c) => a + c.max, 0);
+    for (const c of parts) c.points = pts(c.z, c.max);
+    const score = (10 * parts.reduce((a, c) => a + c.points, 0)) / maxTotal;
+    out.push({
+      x, n: N, hitRate: p, theory: p0, roi: 100 * (x * p - 1), afterLoss: pa, longestLoss,
+      payoff: x < 2 ? `1 loss = ${+(1 / (x - 1)).toFixed(1)} win${+(1 / (x - 1)).toFixed(1) === 1 ? "" : "s"}` : `1 win = ${+(x - 1).toFixed(1)} loss${+(x - 1).toFixed(1) === 1 ? "" : "es"}`,
+      score: Math.round(score * 10) / 10,
+      parts,
+    });
+  }
+  return out;
+}

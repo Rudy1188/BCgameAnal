@@ -1,6 +1,6 @@
 import { Chain } from "./chain.js";
 import { drawChart } from "./charts.js";
-import { fmtP, lab } from "./statmodel.js";
+import { fmtP, lab, liveScores } from "./statmodel.js";
 
 const $ = (id) => document.getElementById(id);
 const pct = (x, d = 3) => (100 * x).toFixed(d) + "%";
@@ -61,7 +61,6 @@ async function run() {
 function render() {
   $("out").hidden = false;
   $("json").disabled = $("csv").disabled = false;
-  renderScore();
   renderTrust();
   renderSummary();
   renderWindows();
@@ -74,33 +73,6 @@ function render() {
 const T = () => report.targets.filter((t) => t.x > 1);
 const mark = (t) => (t.significant ? ` <span class="flag" title="Significant after correcting across all tests">●</span>` : t.watch ? ` <span class="watchmark" title="Stands out within its group only">○</span>` : "");
 const testOf = (family, name) => report.tests.find((t) => t.family === family && t.name === name) || {};
-
-// Simple view: one 10-point score per target, plus what matters for choosing.
-function renderScore() {
-  const ts = T();
-  const rois = ts.map((t) => t.roi);
-  const ex = ts.find((t) => t.x === 1.1) || ts[0];
-  const tr = report.trust;
-  $("scoreCard").innerHTML = `
-    <h2>Score per point</h2>
-    <p class="sub">${num(report.data.N)} rounds${report.data.firstRoundId != null ? ` (${report.data.firstRoundId}–${report.data.lastRoundId})` : ""}.
-      Score = how normally the point behaved compared with a fair game (10 = completely normal). It is not a profit score.</p>
-    <div class="verdict">
-      <div><b>Best point for earning: none.</b> Every point lost money on average: historical ROI from ${Math.min(...rois).toFixed(2)}% to ${Math.max(...rois).toFixed(2)}%.
-        Small points win often but one loss erases many wins; big points win rarely. The average comes out about −${(100 * report.settings.houseEdge).toFixed(0)}% either way.</div>
-      <div><b>A low round doesn't make the next one more likely to hit.</b> At ${lab(ex.x)}: ${pct(ex.after.loss.hitRate, 2)} after a loss vs ${pct(ex.after.win.hitRate, 2)} after a win (normal: ${pct(ex.theory, 2)}).</div>
-      <div><b>Overall:</b> <span class="${tr.level}">${tr.score}/10</span> — ${tr.rating}</div>
-    </div>
-    <div class="tablewrap"><table class="t">
-      <thead><tr><th>Point</th><th>Hit rate</th><th>Normal</th><th>ROI</th><th style="text-align:left">Win vs loss</th><th>Hit rate after a loss</th><th>Longest losing streak</th><th>Score</th></tr></thead>
-      <tbody>${ts.map((t) => `<tr>
-        <td><b>${lab(t.x)}</b></td><td>${pct(t.hitRate, 2)}</td><td class="muted">${pct(t.theory, 2)}</td>
-        <td class="${t.roi >= 0 ? "hi" : "lo"}">${t.roi.toFixed(2)}%</td><td style="text-align:left">${t.payoff}</td>
-        <td>${pct(t.after.loss.hitRate, 2)}</td><td>${num(t.streaks.loss.longest)}</td>
-        <td title="${t.score.failed.length ? "Failed: " + t.score.failed.join(", ") : "All checks passed"}"><span class="pill ${t.score.score >= 9 ? "good" : t.score.score >= 7 ? "warn" : "bad"}">${t.score.score}/10</span></td></tr>`).join("")}</tbody>
-    </table></div>
-    <p class="sub" style="margin-top:8px">Score: hit rate matches a fair game (3) · next round independent of the last (2) · no autocorrelation (1) · stable over time (1) · no trend (1) · normal runs (1) · normal streaks (1). Checks use p-values corrected across all ${report.tests.length} tests.</p>`;
-}
 
 function renderTrust() {
   const tr = report.trust;
@@ -312,11 +284,86 @@ $("csv").onclick = () => {
 };
 
 $("run").onclick = run;
-$("detail").addEventListener("toggle", () => {
-  $("detailBody").hidden = !$("detail").open;
-  if ($("detail").open && report) { renderSummary(); renderWindows(); renderDependence(); }
-});
 window.addEventListener("resize", () => report && (renderSummary(), renderWindows(), renderDependence()));
+
+// ---------------------------------------------------------------------------
+// Live score per point (recalculated every round)
+// ---------------------------------------------------------------------------
+
+let prev = { round: null, scores: new Map(), deltas: new Map() };
+let liveBusy = false, liveAgain = false;
+
+async function refreshLive() {
+  if (liveBusy) { liveAgain = true; return; }
+  liveBusy = true;
+  try {
+    const { latest: l = null, pending = [] } = await chrome.storage.local.get(["latest", "pending"]);
+    latest = l;
+    if (!latest) {
+      $("liveStatus").textContent = "";
+      $("liveBody").innerHTML = `<p class="sub">No round saved yet. Open bc.game/game/crash, then click the extension icon.</p>`;
+      return;
+    }
+    const n = Number($("liveN").value);
+    chain.setLatest(latest);
+    if (chain.length < n) {
+      await chain.extendTo(n, (d, t) => ($("liveStatus").textContent = `Calculating ${num(d)} / ${num(t)}…`));
+    }
+    // Newest first: unconfirmed rounds from the page strip, then the hash chain.
+    const base = chain.crashes, p = pending.length;
+    const total = Math.min(n, base.length + p);
+    const data = new Float64Array(total);
+    for (let i = 0; i < total; i++) data[i] = i < p ? pending[p - 1 - i].c : base[i - p];
+    const scores = liveScores(data, n, { houseEdge: Math.max(0, Number($("edge").value) || 0) / 100 });
+    const round = chain.latest?.roundId != null ? chain.latest.roundId + p : null;
+    if (round !== prev.round) {
+      prev.deltas = new Map(scores.map((t) => [t.x, prev.scores.has(t.x) ? t.score - prev.scores.get(t.x) : 0]));
+      prev.scores = new Map(scores.map((t) => [t.x, t.score]));
+      prev.round = round;
+    }
+    renderLive(scores, round, p, total);
+  } catch (e) {
+    $("liveStatus").textContent = "Failed: " + e.message;
+  } finally {
+    liveBusy = false;
+    if (liveAgain) { liveAgain = false; refreshLive(); }
+  }
+}
+
+function renderLive(scores, round, unconfirmed, total) {
+  if (!scores.length) { $("liveBody").innerHTML = `<p class="sub">Not enough rounds yet.</p>`; return; }
+  const time = new Date().toLocaleTimeString();
+  $("liveStatus").innerHTML = `<span class="good">● Live</span> · round ${round ?? "?"} · updated ${time}`;
+  const rois = scores.map((t) => t.roi);
+  const ex = scores.find((t) => t.x === 1.1) || scores[0];
+  const arrow = (d) => (Math.abs(d) < 0.05 ? "" : `<span class="delta ${d > 0 ? "hi" : "lo"}">${d > 0 ? "▲" : "▼"}${Math.abs(d).toFixed(1)}</span>`);
+  $("liveBody").innerHTML = `
+    <div class="verdict">
+      <div><b>Best point for earning: none.</b> ROI over these ${num(total)} rounds ranges from ${Math.min(...rois).toFixed(2)}% to ${Math.max(...rois).toFixed(2)}%${Math.max(...rois) > 0 ? ". Positive values here are luck in a short sample, not an edge" : ""}:
+        over 1,000,000 rounds every point returns about −1%. Small points win often but one loss erases many wins; big points win rarely.</div>
+      <div><b>A low round doesn't change the next one.</b> At ${lab(ex.x)}: ${pct(ex.afterLoss, 2)} hit rate right after a loss (normal: ${pct(ex.theory, 2)}).</div>
+      <div><b>Score</b> = how close the point is to what a fair game expects (10 = exactly as expected). Fair data usually scores 7–10, and scores move up and down with each round by chance. A higher score does not mean a point is more likely to win.</div>
+    </div>
+    <div class="tablewrap"><table class="t">
+      <thead><tr><th>Point</th><th style="text-align:left">Score</th><th>Hit rate</th><th>Normal</th><th>ROI</th><th style="text-align:left">Win vs loss</th><th>After a loss</th><th>Longest losing streak</th></tr></thead>
+      <tbody>${scores.map((t) => `<tr>
+        <td><b>${lab(t.x)}</b></td>
+        <td style="text-align:left" title="${t.parts.map((c) => `${c.name}: ${c.points.toFixed(2)}/${c.max} (z = ${c.z.toFixed(2)})`).join("\n")}">
+          <span class="scorebar"><i style="width:${10 * t.score}%;background:var(--accent)"></i></span><b>${t.score.toFixed(1)}</b>${arrow(prev.deltas.get(t.x) ?? 0)}</td>
+        <td>${pct(t.hitRate, 2)}</td><td class="muted">${pct(t.theory, 2)}</td>
+        <td class="${t.roi >= 0 ? "hi" : "lo"}">${t.roi.toFixed(2)}%</td><td style="text-align:left">${t.payoff}</td>
+        <td>${pct(t.afterLoss, 2)}</td><td>${num(t.longestLoss)}</td></tr>`).join("")}</tbody>
+    </table></div>
+    <p class="sub" style="margin-top:8px">${unconfirmed ? `Includes ${unconfirmed} newest round${unconfirmed > 1 ? "s" : ""} read from the bc.game page; they are confirmed by the hash chain when the next hash is read. ` : ""}
+      Hover a score for its parts: hit rate vs fair game (3), after a loss = after a win (2), autocorrelation, runs, losing streak, stability, trend (1 each). Keep the bc.game crash tab open for live updates.</p>`;
+}
+
+$("liveN").onchange = refreshLive;
+$("edge").addEventListener("change", refreshLive);
+chrome.storage.onChanged.addListener((changes) => {
+  if (changes.latest || changes.pending) refreshLive();
+});
+refreshLive();
 
 (async () => {
   ({ latest = null } = await chrome.storage.local.get("latest"));

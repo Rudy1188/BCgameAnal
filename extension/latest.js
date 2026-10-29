@@ -46,7 +46,7 @@ export async function updateFromTab(current) {
   const crash = crashPoint(r.hash, salt);
   if (!current || current.roundId == null || r.roundId >= current.roundId) {
     const verified = current?.hash === r.hash ? current.verified : false;
-    await chrome.storage.local.set({ latest: { roundId: r.roundId, hash: r.hash, salt, crash, verified, source: "dom", seenAt: Date.now() }, salt });
+    await chrome.storage.local.set({ latest: { roundId: r.roundId, hash: r.hash, salt, crash, verified, source: "dom", seenAt: Date.now() }, salt, pending: [] });
   }
   const check = r.shownCrash != null && Math.abs(r.shownCrash - crash) < 0.005 ? ` ✔ matches bc.game` : "";
   const warn = res.warning ? `\n${res.warning}` : "";

@@ -41,15 +41,30 @@
   .exports { display:flex; gap:6px; margin-left:auto; }
   .verdict { display:flex; flex-direction:column; gap:6px; background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:10px 12px; margin:6px 0 10px; font-size:13px; line-height:1.5; }
   .pill { display:inline-block; min-width:44px; text-align:center; font-weight:700; padding:1px 8px; border-radius:10px; background:var(--bg); border:1px solid currentColor; }
-  details#detail summary { color:var(--text); font-weight:600; font-size:13px; }
+  .scorebar { display:inline-block; width:70px; height:6px; background:var(--bg); border-radius:3px; overflow:hidden; vertical-align:middle; margin-right:6px; }
+  .scorebar i { display:block; height:100%; }
+  .delta { font-size:10px; margin-left:4px; }
 </style>
 </head>
 <body>
 <main>
   <h1>Statistical report</h1>
-  <p class="sub">Scores 27 points (1.01–1.10, 1.2–2.0, 3–10) on how normally they behaved over past rounds. It does not predict future rounds.</p>
+  <p class="sub">Scores 27 points (1.01–1.10, 1.2–2.0, 3–10) on how normally they behaved over past rounds, updated every round. It does not predict future rounds.</p>
+
+  <section class="card" id="scoreCard">
+    <div class="chartbar" style="margin:0 0 6px">
+      <h2 style="margin:0">Score per point</h2>
+      <span>over the last</span>
+      <select id="liveN"><option value="2000" selected>2,000</option><option value="10000">10,000</option><option value="100000">100,000</option><option value="1000000">1,000,000</option></select>
+      <span>rounds</span>
+      <span id="liveStatus" style="margin-left:auto"></span>
+    </div>
+    <div id="liveBody"><p class="sub">Loading…</p></div>
+  </section>
 
   <section class="card">
+    <h2>Detailed statistics</h2>
+    <p class="sub">Full analysis with confidence intervals, rolling windows, dependence and distribution tests (about 10 s for 1,000,000 rounds).</p>
     <div class="settings">
       <label>Rounds (from the latest back)
         <select id="n">
@@ -70,11 +85,7 @@
   </section>
 
   <div id="out" hidden>
-    <section class="card" id="scoreCard"></section>
-    <details class="card" id="detail">
-      <summary>Detailed statistics (confidence intervals, rolling windows, dependence, distribution)</summary>
-    </details>
-    <div id="detailBody" hidden>
+    <div id="detailBody">
     <section class="card" id="trustCard"></section>
     <section class="card" id="summaryCard"></section>
     <section class="card" id="windowsCard"></section>

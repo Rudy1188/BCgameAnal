@@ -96,12 +96,20 @@ if (!window.__bcCrashHashContent) {
     return info;
   }
 
-  let timer;
+  // Check the page at most every 500 ms while it changes. (A debounce would
+  // never fire: the running crash multiplier changes the page constantly.)
+  let scheduled = false, lastRun = 0;
+  const tick = () => {
+    scheduled = false;
+    lastRun = Date.now();
+    try { readAndSend(); checkStrip(); } catch {}
+  };
   new MutationObserver(() => {
-    clearTimeout(timer);
-    timer = setTimeout(() => { readAndSend(); watchStrip(); }, 400);
+    if (scheduled) return;
+    scheduled = true;
+    setTimeout(tick, Math.max(0, 500 - (Date.now() - lastRun)));
   }).observe(document.documentElement, { childList: true, subtree: true, characterData: true });
-  readAndSend();
+  setTimeout(tick, 0);
 
   // ---- Result strip ----
 
@@ -143,21 +151,55 @@ if (!window.__bcCrashHashContent) {
     chrome.storage.local.set({ newestEnd: end }).catch(() => {});
   };
 
-  let watchedStrip = null;
-  function watchStrip() {
+  // ---- Live rounds from the strip ----
+  // Each time the strip changes, compare it with the last reading to see how
+  // many new results were added and at which end. New multipliers are sent to
+  // the extension so scores update every round, without clicking anything.
+  // (They are confirmed later by the hash chain when the next hash is read.)
+  const MULT_TEXT = /^\s*(\d+\.\d{2})\s*[x×]\s*$/i;
+  let stripEl = null;
+  let lastSeq = null; // multipliers in page order
+
+  function stripItems() {
+    if (stripEl?.isConnected) {
+      const items = [...stripEl.children].filter((c) => MULT_TEXT.test(c.textContent));
+      if (items.length >= 5) return items;
+    }
     const items = findHistoryItems();
-    const strip = items[0]?.parentElement;
-    if (!strip || strip === watchedStrip) return;
-    watchedStrip = strip;
-    new MutationObserver((records) => {
-      for (const rec of records) {
-        for (const node of rec.addedNodes) {
-          if (node.nodeType !== Node.ELEMENT_NODE) continue;
-          if (node === strip.firstElementChild) saveEnd("first");
-          else if (node === strip.lastElementChild) saveEnd("last");
-        }
+    stripEl = items[0]?.parentElement ?? null;
+    return items;
+  }
+  function watchStrip() { stripItems(); }
+
+  // How many new values were added at the front (or back) of `now` compared with `before`.
+  function shift(now, before, atFront) {
+    for (let k = 1; k <= 5; k++) {
+      const L = Math.min(now.length - k, before.length);
+      if (L < 4) break;
+      let same = true;
+      for (let i = 0; i < L && same; i++) {
+        same = atFront ? now[k + i] === before[i] : now[now.length - 1 - k - i] === before[before.length - 1 - i];
       }
-    }).observe(strip, { childList: true });
+      if (same) return k;
+    }
+    return 0;
+  }
+
+  function checkStrip() {
+    const items = stripItems();
+    if (items.length < 5) return;
+    const seq = items.map((el) => Number(el.textContent.match(MULT_TEXT)?.[1]));
+    if (seq.some((v) => !(v >= 1))) return;
+    const before = lastSeq;
+    lastSeq = seq;
+    if (!before || before.join() === seq.join()) return;
+    const front = shift(seq, before, true), back = shift(seq, before, false);
+    let added = [];
+    if (front && (!back || newestEnd === "first")) { saveEnd("first"); added = seq.slice(0, front).reverse(); }
+    else if (back) { saveEnd("last"); added = seq.slice(seq.length - back); }
+    if (added.length) {
+      try { chrome.runtime.sendMessage({ type: "stripRounds", crashes: added }); } catch {} // oldest first
+    }
   }
 
   // ---- Opening and closing a box ----

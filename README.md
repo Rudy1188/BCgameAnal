@@ -38,23 +38,22 @@ Uses the same rounds and payout point as the analysis panel.
 
 If the popup can't read the bc.game tab, it shows what it found on the page (useful for fixing it), and you can still enter a round by hand.
 
-### Score per point
-**Score per point** (popup) analyses the last 1,000,000 rounds (up to 5,000,000) for **27 points**: 1.01–1.10 (step 0.01), 1.2–2.0 (step 0.1) and 3–10 (step 1). For each point it shows:
+### Score per point (live)
+**Score per point** (popup) scores **27 points** (1.01–1.10 step 0.01, 1.2–2.0 step 0.1, 3–10 step 1) over the last 2,000 rounds by default (10,000, 100,000 or 1,000,000 selectable), and **recalculates every round** while the bc.game crash tab is open.
 
-| Point | Hit rate | Normal | ROI | Win vs loss | Hit rate after a loss | Longest losing streak | Score |
+| Point | Score | Hit rate | Normal | ROI | Win vs loss | After a loss | Longest losing streak |
 |---|---|---|---|---|---|---|---|
-| 1.04× | 95.21% | 95.19% | −0.98% | 1 loss = 25 wins | 95.20% | 4 | 10/10 |
-| 2× | 49.58% | 49.50% | −0.85% | 1 win = 1 loss | 49.55% | 18 | 10/10 |
-| 10× | 9.86% | 9.90% | −1.38% | 1 win = 9 losses | 9.87% | 124 | 10/10 |
+| 1.04× | 7.4 ▼0.1 | 95.10% | 95.19% | −1.10% | 1 loss = 25 wins | 90.72% | 2 |
+| 2× | 6.8 | 51.80% | 49.50% | +3.60% | 1 win = 1 loss | 52.65% | 9 |
 
-**Score (0–10)** = how normally the point behaved compared with a fair game: hit rate matches (3), next round independent of the last (2), no autocorrelation (1), stable over time (1), no trend (1), normal runs (1), normal streaks (1). It is **not** a profit score.
+**Score (0–10, graded)** = how close the point is to what a fair game expects. Each check turns its deviation (in standard deviations, z) into points: z = 0 gives full points, |z| ≥ 4 gives none. Weights: hit rate vs fair game 3, after a loss = after a win 2, autocorrelation 1, runs 1, losing streak 1, stability 1, trend 1. Fair data usually scores 7–10 and moves up and down by chance each round. **A higher score does not mean a point is more likely to win.** Hover a score to see its parts.
 
-What the data shows (1,000,000 rounds, 8745448–9745447): every point lost about 1% on average (ROI −0.84% to −1.42%), so there is no best point for earning. A low round does not make the next one more likely to hit: at 1.1×, the hit rate is 89.95% after a loss vs 90.07% after a win.
+**Live updates:** the extension reads each new result from bc.game's result strip as it appears (no clicking) and adds it to the scores. These rounds are confirmed by the hash chain when the next hash is read. The toolbar badge shows the latest result.
 
-Detailed statistics are one click away on the same page.
+What the data shows (1,000,000 rounds, 8745448–9745447): every point returns about −1% in the long run (ROI −0.84% to −1.42%), so there is no best point for earning. Short samples can show positive ROI by luck. A low round does not make the next one more likely to hit: at 1.1×, the hit rate is 89.95% after a loss vs 90.07% after a win.
 
 ### Detailed statistics
-Under **Detailed statistics** the same page reports:
+Below the live scores, **Run analysis** reports (about 10 s for 1,000,000 rounds):
 
 - **Hit rates** for all 27 points: successes, rounds, hit/fail rate, 95% Wilson interval and its half-width.
 - **Expected return**: EV = x·p̂ − 1 and ROI with confidence intervals (assumes a win pays the target in total, stake included).
