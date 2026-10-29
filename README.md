@@ -38,6 +38,29 @@ Uses the same rounds and payout point as the analysis panel.
 
 If the popup can't read the bc.game tab, it shows what it found on the page (useful for fixing it), and you can still enter a round by hand.
 
+### Strategy tester & next-round pick
+**Strategy tester** (popup) replays a betting rule over the last 1,000,000 rounds (100,000 / 500,000 selectable). Each decision uses only the rounds before the one bet on. It then shows the rule's **pick for the next round**, updated every round while the bc.game crash tab is open.
+
+- **Points:** 28 — exact **1.00× (instant bust, payout editable, default 49.99×)** plus the 27 cash-out points.
+- **Rules:** always bet a point · bet a point after N losses in a row · after a round below Y · after a round at or above Y · best ROI over the last W rounds · most "due" point · highest score · random.
+- **Staking:** flat, or martingale (× after a loss, max steps), with an optional bankroll that stops the test when it runs out.
+- **Output:** return %, the **luck range** (where 95% of results land for that rule if the game is fair), bets, wins, profit, biggest drawdown, longest losing streak, biggest stake, a profit chart, and bets by point.
+- **Compare all rules** runs 14 preset rules on the same rounds; click a row to test it.
+
+Results on 1,000,000 real rounds (8745448–9745447, flat stake):
+
+| Rule | Bets | Return | Luck range |
+|---|---|---|---|
+| Always 1.01× | 999,999 | −0.99% | −1.03% to −0.97% |
+| Always 2× | 999,999 | −0.85% | −1.20% to −0.80% |
+| Always 1.00× (instant bust, 49.99×) | 999,999 | −1.43% | −2.37% to +0.36% |
+| 2× after 3 losses in a row | 128,243 | −1.00% | −1.55% to −0.45% |
+| 1.00× after a round below 1.01× | 19,718 | +2.42% | −10.73% to +8.71% |
+| Best ROI, last 100 rounds | 999,900 | −0.29% | −1.84% to −0.16% |
+| Random point | 999,999 | −1.35% | −1.37% to −0.63% |
+
+Every rule lands inside (or right at the edge of) its luck range: none beats chance. Martingale on 2× with a 1,000 bankroll ran out after 387 bets.
+
 ### Score per point (live)
 **Score per point** (popup) scores **27 points** (1.01–1.10 step 0.01, 1.2–2.0 step 0.1, 3–10 step 1) over the last 2,000 rounds by default (10,000, 100,000 or 1,000,000 selectable), and **recalculates every round** while the bc.game crash tab is open.
 

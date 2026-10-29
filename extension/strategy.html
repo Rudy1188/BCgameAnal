@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BC Crash Strategy Tester</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  main { max-width:1100px; margin:0 auto; padding:20px 16px 48px; }
+  h1 { font-size:20px; }
+  h2 { font-size:15px; margin:0 0 6px; }
+  .sub { color:var(--muted); font-size:12px; margin:0 0 10px; line-height:1.5; }
+  .form { display:flex; flex-wrap:wrap; gap:10px; align-items:end; }
+  .form label { display:flex; flex-direction:column; gap:3px; color:var(--muted); font-size:11px; }
+  .form select, .form input { font:13px system-ui, sans-serif; color:var(--text); background:var(--bg); border:1px solid var(--line); border-radius:5px; padding:6px 8px; width:auto; }
+  .form input { width:90px; }
+  .form select#rule { min-width:320px; }
+  .form button.primary { width:auto; padding:8px 18px; }
+  .form .sep { flex-basis:100%; height:0; }
+  #progress { color:var(--muted); font-size:12px; margin-top:8px; min-height:1em; }
+  .pick { display:flex; gap:20px; align-items:center; flex-wrap:wrap; }
+  .pick .big { font-size:44px; font-weight:800; line-height:1; color:var(--accent); }
+  .pick .info { flex:1; min-width:260px; font-size:13px; line-height:1.55; }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:8px; margin:8px 0; }
+  .stat { background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:8px 10px; }
+  .stat b { display:block; font-size:18px; font-variant-numeric:tabular-nums; }
+  .stat span { color:var(--muted); font-size:11px; }
+  .verdict { background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:10px 12px; font-size:13px; line-height:1.5; margin:8px 0; }
+  table.t { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; font-size:12px; }
+  table.t th, table.t td { text-align:right; padding:5px 8px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  table.t th:first-child, table.t td:first-child { text-align:left; }
+  table.t th { color:var(--muted); font-weight:500; font-size:11px; }
+  table.t tr.clickable { cursor:pointer; }
+  table.t tr.clickable:hover td { background:#1f2533; }
+  .tablewrap { overflow-x:auto; }
+  canvas { display:block; width:100%; background:var(--bg); border-radius:6px; margin-top:8px; }
+  .good { color:var(--high); } .warn { color:var(--big); } .bad { color:var(--low); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Strategy tester</h1>
+  <p class="sub">Pick a betting rule. The tester replays it over past rounds (each decision uses only the rounds before it) and shows its pick for the next round, updated every round.</p>
+
+  <section class="card">
+    <div class="form">
+      <label>Rule<select id="rule"></select></label>
+      <label id="pPoint">Point<select id="point"></select></label>
+      <label id="pN">N losses<input id="n" type="number" min="1" value="3"></label>
+      <label id="pY">Y<input id="y" type="number" min="1.01" step="0.01" value="1.05"></label>
+      <label id="pWindow">W rounds<input id="window" type="number" min="10" step="100" value="2000"></label>
+      <div class="sep"></div>
+      <label>Stake<select id="staking"><option value="flat">Flat (same stake)</option><option value="martingale">Martingale (multiply after a loss)</option></select></label>
+      <label>Base stake<input id="base" type="number" min="0.01" step="0.01" value="1"></label>
+      <label id="pFactor">× after loss<input id="factor" type="number" min="1.01" step="0.1" value="2"></label>
+      <label id="pSteps">Max steps<input id="steps" type="number" min="1" value="10"></label>
+      <label>Bankroll (0 = unlimited)<input id="bankroll" type="number" min="0" value="0"></label>
+      <label>Rounds<select id="rounds"><option value="100000">100,000</option><option value="500000">500,000</option><option value="1000000" selected>1,000,000</option></select></label>
+      <label>1.00× pays<input id="bustPay" type="number" min="1" step="0.01" value="49.99"></label>
+      <button class="primary" id="run">Test this rule</button>
+      <button id="compare">Compare all rules</button>
+    </div>
+    <div id="progress"></div>
+  </section>
+
+  <section class="card">
+    <h2>Next round</h2>
+    <div class="pick">
+      <div class="big" id="pick">–</div>
+      <div class="info" id="pickInfo">Run a test to see this rule's pick and how it performed.</div>
+    </div>
+  </section>
+
+  <section class="card" id="resultCard" hidden>
+    <h2 id="resultTitle">Result</h2>
+    <div class="verdict" id="verdict"></div>
+    <div class="stats" id="stats"></div>
+    <div class="sub">Profit over time (units)</div>
+    <canvas id="curve"></canvas>
+    <h2 style="margin-top:12px">Bets by point</h2>
+    <div class="tablewrap"><table class="t"><thead><tr><th>Point</th><th>Bets</th><th>Profit</th><th>Return</th></tr></thead><tbody id="perPoint"></tbody></table></div>
+  </section>
+
+  <section class="card" id="compareCard" hidden>
+    <h2>All rules compared</h2>
+    <p class="sub">Same rounds and stake settings for every rule. "Luck range" is where 95% of results fall for that rule if the game is fair: a result inside it is what chance alone gives. Click a row to test that rule.</p>
+    <div class="tablewrap"><table class="t">
+      <thead><tr><th>Rule</th><th>Bets</th><th>Return</th><th>Luck range (fair game)</th><th>Verdict</th><th>Longest losing streak</th><th>Next pick</th></tr></thead>
+      <tbody id="compareRows"></tbody>
+    </table></div>
+  </section>
+</main>
+<script type="module" src="strategy.js"></script>
+</body>
+</html>

@@ -83,6 +83,7 @@ async function autoUpdate() {
 }
 
 $("openFull").onclick = () => chrome.tabs.create({ url: chrome.runtime.getURL("full.html") });
+$("openStrategy").onclick = () => chrome.tabs.create({ url: chrome.runtime.getURL("strategy.html") });
 $("openReport").onclick = () => chrome.tabs.create({ url: chrome.runtime.getURL("report.html") });
 
 document.querySelectorAll("[data-copy]").forEach((b) => {
