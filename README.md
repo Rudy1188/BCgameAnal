@@ -38,6 +38,23 @@ Uses the same rounds and payout point as the analysis panel.
 
 If the popup can't read the bc.game tab, it shows what it found on the page (useful for fixing it), and you can still enter a round by hand.
 
+### Statistical report & trust score
+**Statistical report** (popup, or the link on the full-history page) analyses up to 5,000,000 rounds (default 1,000,000, from the latest back) and reports:
+
+- **Hit rates** for targets 1.0×–2.0× (step 0.1×): successes, rounds, hit/fail rate, 95% Wilson interval and its half-width.
+- **Expected return**: EV = x·p̂ − 1 and ROI with confidence intervals (assumes a win pays the target in total, stake included).
+- **Baseline comparison** against a configurable house edge, p(x) = (1 − edge)/x. With bc.game's formula this is exact for two-decimal targets.
+- **Rolling windows** of 10,000 rounds: non-overlapping windows for tests (mean, SD vs expected SD, min/max, trend, homogeneity χ², Bonferroni-flagged windows), and overlapping steps for charts.
+- **Dependence**: autocorrelation and Ljung–Box (lags 1–20), Wald–Wolfowitz runs, longest streaks vs expectation, CUSUM change points.
+- **Distribution**: χ² fit to the baseline, first vs second half, and 10-segment comparisons.
+- **Multiple testing**: Holm correction within each test group and across all tests. Only results that survive the correction across all tests count as significant.
+- **Trust score (0–10)**: how consistent the history is with a fair game with independent rounds. It is not a betting signal.
+- Export to JSON or CSV.
+
+Checked on simulated data: fair data scores 10/10 at 1,000,000 rounds. A hidden 3% edge, rounds that depend on the previous one, and a slow drift are each caught by the matching tests. On 1,000,000 real rounds (8745448–9745447) the score is 9.9/10, with no significant deviations.
+
+**These are historical measurements only.** If rounds are provably fair and independent, past results cannot predict the next round, and every target's expected return is about −1%.
+
 ## Node calculator (`src/`, `public/`)
 
 ```
@@ -45,6 +62,7 @@ npm install
 npm run build
 npm start                                   # web page at http://127.0.0.1:3000
 npm run calc -- <hash> [count] [roundId]   # command line
+npm run report -- <hash> [rounds] [roundId] [--edge=0.01] [--json=out.json]   # statistical report
 ```
 
 ## Formula

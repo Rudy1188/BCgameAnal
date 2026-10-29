@@ -8,7 +8,8 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "dev": "tsx watch src/server.ts",
-    "calc": "tsx src/cli.ts"
+    "calc": "tsx src/cli.ts",
+    "report": "node scripts/report.mjs"
   },
   "keywords": [],
   "author": "",

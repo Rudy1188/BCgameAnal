@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BC Crash Statistical Report</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  main { max-width:1200px; margin:0 auto; padding:20px 16px 48px; }
+  h1 { font-size:20px; }
+  h2 { font-size:15px; margin:0 0 4px; }
+  .sub { color:var(--muted); font-size:12px; margin:0 0 10px; }
+  .settings { display:flex; flex-wrap:wrap; gap:10px; align-items:end; }
+  .settings label { display:flex; flex-direction:column; gap:3px; color:var(--muted); font-size:11px; }
+  .settings select, .settings input { font:13px system-ui, sans-serif; color:var(--text); background:var(--bg); border:1px solid var(--line); border-radius:5px; padding:6px 8px; width:auto; }
+  .settings input { width:90px; }
+  .settings button.primary { width:auto; padding:8px 18px; }
+  #progress { color:var(--muted); font-size:12px; margin-top:8px; }
+  .tablewrap { overflow-x:auto; }
+  table.t { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; font-size:12px; }
+  table.t th, table.t td { text-align:right; padding:5px 8px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  table.t th:first-child, table.t td:first-child { text-align:left; }
+  table.t th { color:var(--muted); font-weight:500; font-size:11px; }
+  .flag { color:var(--low); font-weight:700; }
+  .watchmark { color:var(--big); }
+  .score { display:flex; gap:24px; align-items:center; flex-wrap:wrap; }
+  .score .big { font-size:52px; font-weight:800; line-height:1; font-variant-numeric:tabular-nums; }
+  .score .big small { font-size:20px; color:var(--muted); font-weight:500; }
+  .score .rating { flex:1; min-width:260px; font-size:14px; }
+  .good { color:var(--high); } .warn { color:var(--big); } .bad { color:var(--low); }
+  .bar { height:6px; background:var(--bg); border-radius:3px; overflow:hidden; min-width:80px; }
+  .bar i { display:block; height:100%; background:var(--accent); }
+  canvas { display:block; width:100%; background:var(--bg); border-radius:6px; margin-top:8px; }
+  .chartbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; color:var(--muted); font-size:12px; margin-top:6px; }
+  .chartbar select { font:12px system-ui, sans-serif; color:var(--text); background:var(--bg); border:1px solid var(--line); border-radius:5px; padding:3px 6px; width:auto; }
+  .legend span { margin-right:12px; }
+  ul.list { margin:6px 0 0; padding-left:18px; }
+  ul.list li { margin:3px 0; }
+  .note { color:var(--muted); font-size:12px; line-height:1.55; }
+  .note p { margin:6px 0; }
+  .exports { display:flex; gap:6px; margin-left:auto; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Statistical report</h1>
+  <p class="sub">Measures how historical Crash results behaved and tests them against a fair-game baseline. It does not predict future rounds.</p>
+
+  <section class="card">
+    <div class="settings">
+      <label>Rounds (from the latest back)
+        <select id="n">
+          <option value="100000">100,000</option><option value="500000">500,000</option>
+          <option value="1000000" selected>1,000,000</option><option value="2000000">2,000,000</option><option value="5000000">5,000,000</option>
+        </select>
+      </label>
+      <label>Window size<input id="window" type="number" min="1000" step="1000" value="10000"></label>
+      <label>Chart step
+        <select id="step"><option value="1000">1,000 (overlapping)</option><option value="5000">5,000 (overlapping)</option><option value="10000" selected>10,000 (no overlap)</option></select>
+      </label>
+      <label>House edge (baseline)<input id="edge" type="number" min="0" max="50" step="0.1" value="1"></label>
+      <label>Significance α<input id="alpha" type="number" min="0.001" max="0.2" step="0.01" value="0.05"></label>
+      <button class="primary" id="run">Run analysis</button>
+      <div class="exports"><button id="json" disabled>Export JSON</button><button id="csv" disabled>Export CSV</button></div>
+    </div>
+    <div id="progress"></div>
+  </section>
+
+  <div id="out" hidden>
+    <section class="card" id="trustCard"></section>
+    <section class="card" id="summaryCard"></section>
+    <section class="card" id="windowsCard"></section>
+    <section class="card" id="depCard"></section>
+    <section class="card" id="distCard"></section>
+    <section class="card" id="anomalyCard"></section>
+    <section class="card note" id="limits"></section>
+  </div>
+</main>
+<script type="module" src="report.js"></script>
+</body>
+</html>
