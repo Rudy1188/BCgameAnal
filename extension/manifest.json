@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "BC Crash Hash",
+  "version": "1.0.0",
+  "description": "Picks up the latest Crash round hash, salt and round ID on bc.game and calculates earlier rounds.",
+  "permissions": ["storage"],
+  "host_permissions": ["https://bc.game/*"],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "action": { "default_popup": "popup.html", "default_title": "BC Crash Hash" },
+  "content_scripts": [
+    {
+      "matches": ["https://bc.game/*"],
+      "js": ["inject.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://bc.game/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

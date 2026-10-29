@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Crash Hash Calculator</title>
+<style>
+  :root { --bg:#0f1115; --panel:#181b22; --line:#2a2f3a; --text:#e6e8ee; --muted:#8a91a3;
+          --low:#ff6b6b; --high:#4fd18b; --big:#f5c451; --accent:#4f8cff; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.45 system-ui, sans-serif; background:var(--bg); color:var(--text); }
+  main { max-width:1100px; margin:0 auto; padding:20px 16px 40px; }
+  h1 { font-size:20px; margin:0 0 4px; }
+  .sub { color:var(--muted); margin:0 0 18px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:16px; }
+  .grid { display:grid; grid-template-columns: 1fr 160px 120px auto; gap:10px; align-items:end; }
+  @media (max-width:760px) { .grid { grid-template-columns:1fr 1fr; } .grid .wide { grid-column:1 / -1; } }
+  label { display:flex; flex-direction:column; gap:4px; color:var(--muted); font-size:12px; }
+  input { font:13px ui-monospace, Consolas, monospace; color:var(--text); background:var(--bg);
+          border:1px solid var(--line); border-radius:6px; padding:8px 10px; width:100%; }
+  input:focus { outline:2px solid var(--accent); border-color:transparent; }
+  button { font:inherit; font-weight:600; color:#fff; background:var(--accent); border:0; border-radius:6px;
+           padding:9px 18px; cursor:pointer; }
+  button.ghost { background:transparent; color:var(--muted); border:1px solid var(--line); font-weight:400; padding:4px 10px; }
+  details { margin-top:10px; color:var(--muted); font-size:12px; }
+  details input { margin-top:6px; }
+  .error { color:var(--low); margin-top:10px; min-height:1em; }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:10px; }
+  .stat { background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
+  .stat b { display:block; font-size:20px; font-variant-numeric:tabular-nums; }
+  .stat span { color:var(--muted); font-size:12px; }
+  #strip { display:flex; gap:2px; align-items:flex-end; height:90px; margin-top:14px; overflow:hidden; }
+  #strip div { flex:1; min-width:2px; border-radius:2px 2px 0 0; }
+  .tablewrap { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
+  th, td { text-align:left; padding:6px 10px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th { color:var(--muted); font-weight:500; font-size:12px; position:sticky; top:0; background:var(--panel); }
+  td.hash { font:12px ui-monospace, Consolas, monospace; color:var(--muted); }
+  .x { font-weight:700; }
+  .lo { color:var(--low); } .hi { color:var(--high); } .bg { color:var(--big); }
+  .head { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px; flex-wrap:wrap; }
+  .head h2 { font-size:15px; margin:0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Crash Hash Calculator</h1>
+  <p class="sub">Paste the latest round's hash from bc.game/game/crash. It works out every earlier round's hash and crash point.</p>
+
+  <form class="card" id="form">
+    <div class="grid">
+      <label class="wide">Latest hash
+        <input id="hash" placeholder="64 hex characters" autocomplete="off" spellcheck="false" required>
+      </label>
+      <label>Round ID (optional)
+        <input id="round" inputmode="numeric" placeholder="e.g. 9745447">
+      </label>
+      <label>Rounds
+        <input id="count" type="number" min="1" max="10000" value="100">
+      </label>
+      <button type="submit">Calculate</button>
+    </div>
+    <details>
+      <summary>Salt</summary>
+      <input id="salt" spellcheck="false" value="000000000000000000010283162e089cc99f643ee5043141412e839945afe2f9">
+    </details>
+    <div class="error" id="error"></div>
+  </form>
+
+  <section class="card" id="summary" hidden>
+    <div class="stats" id="stats"></div>
+    <div id="strip" title="Oldest → newest. Red below 2×, green 2× and up, gold 10× and up."></div>
+  </section>
+
+  <section class="card" id="results" hidden>
+    <div class="head">
+      <h2 id="title">Rounds</h2>
+      <button class="ghost" id="csv" type="button">Download CSV</button>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Round</th><th>Crash</th><th>Hash</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  let rounds = [];
+
+  const tone = (x) => x >= 10 ? "bg" : x >= 2 ? "hi" : "lo";
+  const fmt = (x) => x.toFixed(2) + "×";
+
+  // Remember the last inputs in this browser.
+  try {
+    const saved = JSON.parse(localStorage.getItem("crash-inputs") || "{}");
+    for (const k of ["hash", "round", "count", "salt"]) if (saved[k]) $(k).value = saved[k];
+  } catch {}
+
+  $("form").onsubmit = async (e) => {
+    e.preventDefault();
+    $("error").textContent = "";
+    const params = new URLSearchParams({
+      hash: $("hash").value.trim(),
+      count: $("count").value || "100",
+      salt: $("salt").value.trim(),
+    });
+    if ($("round").value.trim()) params.set("round", $("round").value.trim());
+    try { localStorage.setItem("crash-inputs", JSON.stringify(Object.fromEntries(params))); } catch {}
+
+    const res = await fetch("/api/history?" + params);
+    const data = await res.json();
+    if (!res.ok) { $("error").textContent = data.error; return; }
+    rounds = data.rounds;
+    render();
+  };
+
+  function render() {
+    const xs = rounds.map((r) => r.crash);
+    const sorted = [...xs].sort((a, b) => a - b);
+    const pct = (n) => (100 * n / xs.length).toFixed(1) + "%";
+    const stats = [
+      ["Latest", fmt(xs[0]), tone(xs[0])],
+      ["Rounds", xs.length],
+      ["Median", fmt(sorted[Math.floor(sorted.length / 2)])],
+      ["Highest", fmt(sorted[sorted.length - 1]), "bg"],
+      ["Below 2×", pct(xs.filter((x) => x < 2).length), "lo"],
+      ["2× and up", pct(xs.filter((x) => x >= 2).length), "hi"],
+      ["10× and up", pct(xs.filter((x) => x >= 10).length), "bg"],
+    ];
+    $("stats").innerHTML = stats.map(([k, v, c = ""]) => `<div class="stat"><b class="${c}">${v}</b><span>${k}</span></div>`).join("");
+
+    // Bar strip of the most recent 200 rounds, oldest on the left. Log scale so big rounds don't flatten the rest.
+    const recent = rounds.slice(0, 200).reverse();
+    const max = Math.log(Math.max(...recent.map((r) => r.crash)) + 1);
+    $("strip").innerHTML = recent.map((r) => {
+      const h = Math.max(4, 100 * Math.log(r.crash + 1) / max);
+      const color = r.crash >= 10 ? "var(--big)" : r.crash >= 2 ? "var(--high)" : "var(--low)";
+      return `<div style="height:${h}%;background:${color}" title="${r.roundId ?? ""} ${fmt(r.crash)}"></div>`;
+    }).join("");
+
+    $("title").textContent = `Rounds (newest first)`;
+    $("rows").innerHTML = rounds.map((r) =>
+      `<tr><td>${r.roundId ?? ""}</td><td class="x ${tone(r.crash)}">${fmt(r.crash)}</td><td class="hash">${r.hash}</td></tr>`
+    ).join("");
+
+    $("summary").hidden = $("results").hidden = false;
+  }
+
+  $("csv").onclick = () => {
+    const csv = "round,crash,hash\n" + rounds.map((r) => `${r.roundId ?? ""},${r.crash},${r.hash}`).join("\n");
+    const a = Object.assign(document.createElement("a"), {
+      href: URL.createObjectURL(new Blob([csv], { type: "text/csv" })),
+      download: "crash-rounds.csv",
+    });
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+</script>
+</body>
+</html>
