@@ -1,4 +1,4 @@
-// "Last N issue, payout < X" stats like bc.game's table, plus the biggest crashes.
+// "Last N issue, payout < X" stats, like bc.game's own table.
 
 export const MAX_COUNT = 100000;
 export const DEFAULT_COUNT = 2000;
@@ -28,18 +28,4 @@ export function analyze(crashes, n, point) {
       { label: `[${point}, ∞)`, count: above, chance: pct(above), maxCombo: maxAbove, cls: "hi" },
     ],
   };
-}
-
-/** The k biggest crashes in the last n rounds: [{ i, x }], biggest first. */
-export function biggest(crashes, n, k = 10) {
-  const len = Math.min(n, crashes.length);
-  const top = [];
-  for (let i = 0; i < len; i++) {
-    const x = crashes[i];
-    if (top.length === k && x <= top[k - 1].x) continue;
-    let j = Math.min(top.length, k - 1);
-    top[j] = { i, x };
-    while (j > 0 && top[j - 1].x < x) { [top[j - 1], top[j]] = [top[j], top[j - 1]]; j--; }
-  }
-  return top;
 }

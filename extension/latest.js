@@ -1,4 +1,4 @@
-// Asks the open bc.game tab for the newest round (used by the popup on open).
+// Asks the open bc.game tab for the newest round (used by the panel).
 import { DEFAULT_SALT, crashPoint } from "./crash.js";
 
 async function findBcTab() {
@@ -29,7 +29,7 @@ export async function updateFromTab(current) {
   try {
     res = await askTab(tab.id);
   } catch (e) {
-    return { ok: false, cls: "err", message: `Couldn't read the bc.game tab (${e.message}). Reload it and open this popup again.` };
+    return { ok: false, cls: "err", message: `Couldn't read the bc.game tab (${e.message}). Reload the page and try again.` };
   }
   if (!res?.ok) {
     const d = res?.debug ?? {};

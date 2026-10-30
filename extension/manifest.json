@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "BC Crash Trend",
-  "version": "2.0.0",
-  "description": "Live bc.game Crash trend balls, stats and biggest crashes from the provably-fair hash chain, in a small window that stays open.",
+  "version": "3.0.0",
+  "description": "Live bc.game Crash trend balls and stats from the provably-fair hash chain, shown inside the crash page.",
   "permissions": [
     "storage",
     "scripting"
@@ -36,9 +36,29 @@
         "https://*.bc.game/*"
       ],
       "js": [
-        "content.js"
+        "content.js",
+        "overlay.js"
       ],
       "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "panel.html",
+        "panel.js",
+        "style.css",
+        "crash.js",
+        "analysis.js",
+        "trend.js",
+        "chain.js",
+        "latest.js",
+        "worker.js"
+      ],
+      "matches": [
+        "https://bc.game/*",
+        "https://*.bc.game/*"
+      ]
     }
   ]
 }

@@ -68,34 +68,32 @@ async function handle(c) {
 
 async function setBadge(crash) {
   await chrome.action.setBadgeText({ text: crash == null ? "" : crash >= 100 ? String(Math.floor(crash)) : crash.toFixed(crash >= 10 ? 0 : 1) });
-  await chrome.action.setBadgeBackgroundColor({ color: crash >= 10 ? "#c99a1e" : crash >= 2 ? "#1f9d55" : "#d64545" });
+  await chrome.action.setBadgeBackgroundColor({ color: crash >= 10 ? "#c99a1e" : crash >= 2 ? "#1f9d55" : "#e8650f" });
 }
 
-// ---- Toolbar button: open the trend window (or bring it to the front) ----
-// A normal window stays open while you play, unlike a popup that closes on any click.
-const WINDOW_URL = chrome.runtime.getURL("popup.html");
-const DEFAULT_BOUNDS = { width: 400, height: 720 };
+// ---- Toolbar button: show/hide the panel on the bc.game crash page ----
+const CRASH_URL = "https://bc.game/game/crash";
+const isBc = (url) => /^https:\/\/([a-z0-9-]+\.)*bc\.game\//i.test(url ?? "");
 
-chrome.action.onClicked.addListener(async () => {
-  const { trendWindowId } = await chrome.storage.session.get("trendWindowId");
-  if (trendWindowId != null) {
-    try {
-      const w = await chrome.windows.get(trendWindowId, { populate: true });
-      if (w.tabs?.some((t) => t.url?.startsWith(WINDOW_URL))) {
-        await chrome.windows.update(trendWindowId, { focused: true, state: "normal" });
-        return;
-      }
-    } catch {} // window was closed
+chrome.action.onClicked.addListener(async (tab) => {
+  if (!isBc(tab.url)) {
+    const [crashTab] = await chrome.tabs.query({ url: ["https://bc.game/game/crash*", "https://*.bc.game/game/crash*"] });
+    if (crashTab) {
+      await chrome.tabs.update(crashTab.id, { active: true });
+      await chrome.windows.update(crashTab.windowId, { focused: true });
+    } else {
+      await chrome.tabs.create({ url: CRASH_URL });
+    }
+    return;
   }
-  const { trendBounds } = await chrome.storage.local.get("trendBounds");
-  const w = await chrome.windows.create({ url: WINDOW_URL, type: "popup", ...DEFAULT_BOUNDS, ...trendBounds });
-  await chrome.storage.session.set({ trendWindowId: w.id });
-});
-
-// Remember where the window was moved/resized to.
-chrome.windows.onBoundsChanged.addListener(async (w) => {
-  const { trendWindowId } = await chrome.storage.session.get("trendWindowId");
-  if (w.id !== trendWindowId) return;
-  const { left, top, width, height } = w;
-  await chrome.storage.local.set({ trendBounds: { left, top, width, height } });
+  let res;
+  try {
+    res = await chrome.tabs.sendMessage(tab.id, { type: "togglePanel" });
+  } catch {
+    // Tab was open before the extension was installed/reloaded: start the scripts now.
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["inject.js"], world: "MAIN" });
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js", "overlay.js"] });
+    return;
+  }
+  if (res && !res.onCrashPage) await chrome.tabs.update(tab.id, { url: new URL("/game/crash", tab.url).href });
 });

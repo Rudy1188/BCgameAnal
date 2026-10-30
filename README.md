@@ -4,7 +4,7 @@ Tools for BC.Game Crash's provably-fair hashes: get the latest round's hash, sal
 
 ## Chrome extension (`extension/`)
 
-**BC Crash Trend**: a small window that stays open next to bc.game and shows the Crash trend balls, a stats table and the biggest crashes, updated every round.
+**BC Crash Trend**: a panel inside the bc.game crash page with the trend balls and a stats table, updated every round.
 
 ### Install
 1. Open `chrome://extensions` and turn on **Developer mode** (top right).
@@ -12,12 +12,19 @@ Tools for BC.Game Crash's provably-fair hashes: get the latest round's hash, sal
 3. Pin **BC Crash Trend** to the toolbar.
 
 ### Use
-1. Open https://bc.game/game/crash (reload the tab after installing or updating the extension).
-2. Click the extension icon. A small window opens (400 × 720, resizable; it remembers where you put it). It stays open while you play; clicking the icon again brings it to the front.
-3. The window reads the newest round from the bc.game tab when it opens (or click **Refresh**), then adds each new result from the page's result strip as it appears. These rounds are confirmed by the hash chain when the next hash is read. The toolbar badge shows the latest result.
+1. Open https://bc.game/game/crash (reload the tab after installing or updating the extension). The panel appears on the right side of the page.
+2. Drag it by its title bar, drag its bottom-right corner to make it wider, **–** to minimise, **×** to close. It remembers its place.
+3. The toolbar icon shows or hides the panel (on another site it opens the crash page).
+4. New results are read from the page's result strip as they appear. The round's hash is read from the page when available, or by clicking **Refresh** (which opens and closes bc.game's round box). The toolbar badge shows the latest result.
+
+### Trend
+- **Orange** below the payout point, **green** at or above it, **yellow** 10× and up (counted on the green side).
+- 10 rows. Each streak fills a column from top to bottom; a streak longer than 10 turns right along the bottom row (L-shape) instead of starting a new column. The next streak starts in the next column and stops above that tail.
+- Scroll sideways (scrollbar or mouse wheel) through all the selected rounds, up to 100,000. The newest round is on the right, and the view follows new rounds unless you scrolled back.
+- Hover a ball to see its round ID and crash point.
 
 ### Stats table
-**Last [2000] issue, payout < [2]**, as on bc.game. Type any number of rounds from 10 to 100,000 and any payout point, or use the quick buttons (100 / 500 / 2K / 10K / 100K, 1.5× / 2× / 3× / 5× / 10×).
+**Last [2000] issue, payout < [2]**, as on bc.game. Type any number of rounds from 10 to 100,000 and any payout point, or use the quick buttons. The trend uses the same rounds and payout point.
 
 | Range | Chance | Count | Max Combo |
 |---|---|---|---|
@@ -26,19 +33,7 @@ Tools for BC.Game Crash's provably-fair hashes: get the latest round's hash, sal
 
 **Max Combo** is the longest run of rounds in a row in that range.
 
-### Trend balls
-- **Red** below the payout point, **green** at or above it, **yellow** 10× and up (counted on the green side).
-- Each streak fills a column of 6 from top to bottom. A streak longer than 6 turns right along the bottom row (L-shape) instead of starting a new column; the next streak starts in the next column and stops above that tail.
-- **Pages** fit the window width. The last page is the newest; use « ‹ › » or type a page number. All of the selected rounds (up to 100,000) can be paged through.
-- Hover a ball to see its round ID and crash point.
-
-### Biggest crash
-The highest crash point in the selected rounds, with its round ID and how many rounds ago, plus the next 9 biggest (bar length on a log scale). Click any of them to jump to its ball in the trend (ringed in blue). The biggest ball always has a white ring.
-
-### History
-Every selected round as round ID + crash point, newest first, 60 per page.
-
-If the window can't read the bc.game tab, it says what it found on the page, and you can still enter a round by hand.
+If the panel can't read the round, it says what it found on the page, and you can enter a round by hand.
 
 **Past results don't predict the next round.** Over 1,000,000 real rounds every payout point returns about −1%, and no betting rule tested beat chance.
 

@@ -1,7 +1,7 @@
 // Runs on bc.game pages.
 //  - Forwards hashes that inject.js finds in the page's own data.
 //  - Reads the round details box ("Round ID ... Salt ... Hash ...") whenever it is open.
-//  - On request from the popup, opens the newest round in the page's result
+//  - On request from the panel, opens the newest round in the page's result
 //    strip, reads its details box, and closes it again. Only one box is ever
 //    open at a time.
 

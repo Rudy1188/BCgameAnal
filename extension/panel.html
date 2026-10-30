@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BC Crash Trend</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  html, body { overflow-x:hidden; }
+  main { padding:8px; }
+  .card { padding:8px; margin-bottom:8px; }
+  .bar { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+  .bar .round { flex:1; }
+  .bar .round b { font-size:14px; }
+  .bar .crash { font-size:18px; }
+  .tools { display:flex; gap:10px; align-items:center; }
+  .live { font-size:11px; color:var(--muted); }
+  .live.on { color:var(--high); }
+  #autoStatus { margin:0 0 6px; }
+
+  .legend { display:flex; gap:12px; color:var(--muted); font-size:11px; margin-bottom:6px; }
+  .legend i { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:4px; vertical-align:-1px; }
+
+  .an-head { display:flex; gap:5px; align-items:center; flex-wrap:wrap; color:var(--muted); }
+  .an-head input { width:84px; font:13px system-ui, sans-serif; padding:4px 6px; }
+  .an-head input.pt { width:62px; }
+  .chips { display:flex; gap:4px; flex-wrap:wrap; margin-top:6px; }
+  .chips button { font-size:11px; padding:2px 8px; }
+  .chips button.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .chips .sep { width:1px; background:var(--line); margin:0 3px; }
+  table.an { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; margin-top:6px; }
+  table.an th, table.an td { text-align:left; padding:4px 6px; border-bottom:1px solid var(--line); }
+  table.an th { color:var(--muted); font-weight:500; font-size:11px; }
+  table.an td:first-child { font-weight:700; }
+  .note { color:var(--muted); font-size:11px; margin-top:4px; }
+  .note:empty { display:none; }
+</style>
+</head>
+<body>
+<main>
+  <div class="bar">
+    <div class="round" id="roundLine"><span class="empty">No round yet. Click <b>Refresh</b>.</span></div>
+    <div class="tools">
+      <span class="live" id="live"></span>
+      <button class="link" id="refresh" title="Read the newest round from this page">Refresh</button>
+      <button class="link" id="reset" title="Forget the saved round">Reset</button>
+    </div>
+  </div>
+  <div class="status" id="autoStatus"></div>
+
+  <div id="main" hidden>
+    <section class="card">
+      <div class="legend">
+        <span><i style="background:var(--low)"></i>below <span class="pt-label"></span></span>
+        <span><i style="background:var(--high)"></i><span class="pt-label"></span> and up</span>
+        <span><i style="background:var(--big)"></i>10× and up</span>
+      </div>
+      <div id="trend"></div>
+    </section>
+
+    <section class="card">
+      <div class="an-head">
+        <span>Last</span>
+        <input id="count" type="number" min="10" max="100000" step="1" title="10 to 100,000 rounds">
+        <span>issue, payout &lt;</span>
+        <input id="point" class="pt" type="number" min="1.01" step="0.01">
+      </div>
+      <div class="chips" id="chips"></div>
+      <table class="an">
+        <thead><tr><th>Range</th><th>Chance</th><th>Count</th><th>Max Combo</th></tr></thead>
+        <tbody id="anBody"></tbody>
+      </table>
+      <div class="note" id="note"></div>
+    </section>
+  </div>
+
+  <details class="card">
+    <summary>Enter a round by hand</summary>
+    <div class="row"><input id="mRound" placeholder="Round ID, e.g. 9745447" inputmode="numeric"></div>
+    <div class="row"><input id="mHash" placeholder="Hash (64 hex characters)" spellcheck="false"></div>
+    <div class="row"><input id="mSalt" placeholder="Salt (leave empty for default)" spellcheck="false"><button id="mSave">Save</button></div>
+    <div class="status" id="mError"></div>
+  </details>
+</main>
+<script type="module" src="panel.js"></script>
+</body>
+</html>
