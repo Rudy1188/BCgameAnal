@@ -1,5 +1,5 @@
 :root { --bg:#0f1115; --panel:#181b22; --line:#2a2f3a; --text:#e6e8ee; --muted:#8a91a3;
-        --low:#ff6b6b; --high:#4fd18b; --big:#f5c451; --accent:#4f8cff; }
+        --low:#ff6b6b; --high:#4fd18b; --big:#f5c451; --accent:#4f8cff; --grid:#222733; }
 * { box-sizing:border-box; }
 body { margin:0; font:13px/1.45 system-ui, sans-serif; background:var(--bg); color:var(--text); }
 main { padding:14px; }

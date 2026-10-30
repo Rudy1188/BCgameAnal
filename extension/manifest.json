@@ -1,22 +1,43 @@
 {
   "manifest_version": 3,
-  "name": "BC Crash Hash",
-  "version": "1.7.0",
-  "description": "Picks up the latest Crash round hash, salt and round ID on bc.game and calculates earlier rounds.",
-  "permissions": ["storage", "scripting"],
-  "host_permissions": ["https://bc.game/*", "https://*.bc.game/*"],
-  "background": { "service_worker": "background.js", "type": "module" },
-  "action": { "default_popup": "popup.html", "default_title": "BC Crash Hash" },
+  "name": "BC Crash Trend",
+  "version": "2.0.0",
+  "description": "Live bc.game Crash trend balls, stats and biggest crashes from the provably-fair hash chain, in a small window that stays open.",
+  "permissions": [
+    "storage",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://bc.game/*",
+    "https://*.bc.game/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "BC Crash Trend"
+  },
   "content_scripts": [
     {
-      "matches": ["https://bc.game/*", "https://*.bc.game/*"],
-      "js": ["inject.js"],
+      "matches": [
+        "https://bc.game/*",
+        "https://*.bc.game/*"
+      ],
+      "js": [
+        "inject.js"
+      ],
       "run_at": "document_start",
       "world": "MAIN"
     },
     {
-      "matches": ["https://bc.game/*", "https://*.bc.game/*"],
-      "js": ["content.js"],
+      "matches": [
+        "https://bc.game/*",
+        "https://*.bc.game/*"
+      ],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_idle"
     }
   ]

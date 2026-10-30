@@ -1,240 +1,154 @@
-// Trend panel: "Beads" (bc.game-style dot grid, one column per streak) and
-// "Chart" (multiplier bars + share of rounds at/above the payout point).
-// Drawn on a canvas so it stays fast with millions of rounds; a slider pans
-// back through history (right end = newest).
+// Trend ball panel, like bc.game's: red below the payout point, green at or
+// above it, yellow for big rounds (10× and up, still on the green side).
+// Each streak fills a column top to bottom; a streak longer than the 6 rows
+// turns right along the bottom (L-shape) instead of starting a new column.
+// The board is split into pages that fit the panel width; the last page is
+// the newest.
 
-const COLORS = () => {
-  const s = getComputedStyle(document.documentElement);
-  const v = (n, d) => s.getPropertyValue(n).trim() || d;
-  return { low: v("--low", "#ff6b6b"), high: v("--high", "#4fd18b"), big: v("--big", "#f5c451"),
-           line: v("--line", "#2a2f3a"), muted: v("--muted", "#8a91a3"), text: v("--text", "#e6e8ee"), accent: v("--accent", "#4f8cff") };
-};
-const ZOOMS = [100, 500, 2000, 10000, 100000, 1000000];
-const fmt = (x) => x.toFixed(2) + "×";
+const fmt = (x) => x.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "×";
 
 /**
- * opts: getCrashes() newest-first, getRoundId(i), getPoint(), getCount(),
- *       views (["beads","chart"]), height, cell (bead size), rows (bead rows)
+ * Lays out rounds oldest-first. crashes: newest first; uses the first n.
+ * Returns { col: Int32Array, row: Uint8Array, cols } indexed by round index i (0 = newest).
  */
-export function createTrendPanel(root, opts) {
-  const { getCrashes, getRoundId, getPoint, getCount, views = ["beads", "chart"], height = 200, cell = 16, rows = 6 } = opts;
-  let view = views[0];
-  let zoom = 500;
-  let offset = 0; // columns (beads) or rounds (chart) back from the newest end
-  let layout = null; // cached bead columns
-  let layoutKey = "";
+export function layoutBalls(crashes, n, point, rows = 6) {
+  const col = new Int32Array(n);
+  const row = new Uint8Array(n);
+  let occ = new Uint8Array(1024); // bitmask of filled rows per column
+  const mark = (c, r) => {
+    if (c >= occ.length) { const o = new Uint8Array(Math.max(c + 1, occ.length * 2)); o.set(occ); occ = o; }
+    occ[c] |= 1 << r;
+  };
+  const filled = (c, r) => c < occ.length && (occ[c] >> r) & 1;
+  let start = -1, c = 0, r = 0, side = null, cols = 0;
+  for (let i = n - 1; i >= 0; i--) {
+    const below = crashes[i] < point;
+    if (below !== side) {
+      side = below;
+      start++;
+      while (filled(start, 0)) start++;
+      c = start; r = 0;
+    } else if (r + 1 < rows && !filled(c, r + 1)) {
+      r++;
+    } else {
+      c++; // L-shape: continue to the right on the same row
+    }
+    mark(c, r);
+    col[i] = c; row[i] = r;
+    if (c + 1 > cols) cols = c + 1;
+  }
+  return { col, row, cols };
+}
+
+/**
+ * opts: rows (6), cell (px per ball), onPick(i) when a ball is clicked.
+ * render({ crashes, n, point, big, roundId(i), marks: Map(i -> class) })
+ */
+export function createTrendPanel(root, { rows = 6, cell = 20, onPick } = {}) {
+  let fromNewest = 0; // pages back from the newest page
+  let state = null;
+  let L = null, Lkey = "";
 
   root.innerHTML = `
-    <div class="tr-head">
-      ${views.length > 1 ? views.map((v) => `<button data-view="${v}">${v === "beads" ? "Beads" : "Chart"}</button>`).join("") : ""}
-      <select class="tr-zoom" title="Rounds on screen">${ZOOMS.map((z) => `<option value="${z}">${z.toLocaleString()} rounds on screen</option>`).join("")}</select>
-      <span class="tr-range"></span>
+    <div class="tb-board"><div class="tb-grid"></div></div>
+    <div class="tb-pager">
+      <button data-go="first" title="Oldest page">«</button>
+      <button data-go="prev" title="Older">‹</button>
+      <span class="tb-page"><input type="number" min="1" value="1"> / <b>1</b></span>
+      <button data-go="next" title="Newer">›</button>
+      <button data-go="last" title="Newest page">»</button>
     </div>
-    <div class="tr-canvaswrap"><canvas></canvas><div class="tr-tip" hidden></div></div>
-    <input class="tr-pan" type="range" min="0" max="0" value="0" title="Drag left to go back in history">
-    <div class="tr-legend"></div>`;
+    <div class="tb-range"></div>`;
+  const $board = root.querySelector(".tb-board");
+  const $grid = root.querySelector(".tb-grid");
+  const $page = root.querySelector(".tb-page input");
+  const $pages = root.querySelector(".tb-page b");
+  const $range = root.querySelector(".tb-range");
 
-  const canvas = root.querySelector("canvas");
-  const ctx = canvas.getContext("2d");
-  const $pan = root.querySelector(".tr-pan");
-  const $zoom = root.querySelector(".tr-zoom");
-  const $range = root.querySelector(".tr-range");
-  const $tip = root.querySelector(".tr-tip");
-  const $legend = root.querySelector(".tr-legend");
-  canvas.style.height = height + "px";
-
-  // ---- Beads layout: one column per streak, wrapping after `rows` ----
-  function getLayout(crashes, n, point) {
-    const key = `${n}|${point}|${crashes.length}|${crashes[0]}|${crashes[n - 1]}`;
-    if (key === layoutKey) return layout;
-    const start = new Int32Array(Math.max(16, Math.ceil(n / 1) + 1));
-    const len = new Uint8Array(start.length);
-    const below = new Uint8Array(start.length);
-    let cols = 0;
-    let i = n - 1; // oldest first
-    while (i >= 0) {
-      const b = crashes[i] < point;
-      let s = i;
-      while (i >= 0 && (crashes[i] < point) === b) i--;
-      let remaining = s - i;
-      while (remaining > 0) {
-        const l = Math.min(rows, remaining);
-        start[cols] = s; len[cols] = l; below[cols] = b ? 1 : 0; cols++;
-        s -= l; remaining -= l;
-      }
-    }
-    layout = { start, len, below, cols };
-    layoutKey = key;
-    return layout;
-  }
-
-  function size() {
-    const dpr = window.devicePixelRatio || 1;
-    const w = Math.max(100, canvas.clientWidth || root.clientWidth || 400);
-    if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(height * dpr)) {
-      canvas.width = Math.round(w * dpr);
-      canvas.height = Math.round(height * dpr);
-    }
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    return w;
-  }
-
-  // Slider value is "how far from the oldest end"; offset is "how far back from newest".
-  function setPan(max) {
-    $pan.max = String(max);
-    offset = Math.min(offset, max);
-    $pan.value = String(max - offset);
-    $pan.disabled = max === 0;
-  }
-
-  let hit = null; // for hover: maps x,y to a round index
+  const perPage = () => Math.max(5, Math.floor(($board.clientWidth || root.clientWidth || 340) / cell));
 
   function draw() {
-    const C = COLORS();
-    const w = size();
-    ctx.clearRect(0, 0, w, height);
-    const crashes = getCrashes();
-    const n = Math.min(getCount(), crashes.length);
-    const point = getPoint();
-    root.querySelectorAll("[data-view]").forEach((b) => b.classList.toggle("on", b.dataset.view === view));
-    $zoom.hidden = view !== "chart";
-    if (!n) { $range.textContent = ""; $legend.textContent = ""; setPan(0); hit = null; return; }
+    if (!state) return;
+    const { crashes, n, point, big = 10, roundId, marks = new Map() } = state;
+    const key = `${n}|${point}|${crashes.length}|${crashes[0]}|${crashes[n - 1]}`;
+    if (key !== Lkey) { L = layoutBalls(crashes, n, point, rows); Lkey = key; }
 
-    const rid = (i) => { const r = getRoundId(i); return r != null ? r : `#${i + 1}`; };
+    const V = perPage();
+    const pages = Math.max(1, Math.ceil(L.cols / V));
+    fromNewest = Math.max(0, Math.min(fromNewest, pages - 1));
+    const last = L.cols - fromNewest * V; // exclusive
+    const first = Math.max(0, last - V);
 
-    if (view === "beads") {
-      const L = getLayout(crashes, n, point);
-      const c = Math.max(6, Math.min(cell, Math.floor(height / rows)));
-      const visible = Math.max(1, Math.floor(w / c));
-      setPan(Math.max(0, L.cols - visible));
-      const last = L.cols - offset; // exclusive
-      const first = Math.max(0, last - visible);
-      const r = c / 2 - 1.5;
-      for (let col = first; col < last; col++) {
-        const x = (col - first) * c + c / 2;
-        ctx.fillStyle = L.below[col] ? C.low : C.high;
-        for (let k = 0; k < L.len[col]; k++) {
-          ctx.beginPath();
-          ctx.arc(x, k * c + c / 2, r, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-      hit = (x, y) => {
-        const col = first + Math.floor(x / c), k = Math.floor(y / c);
-        if (col >= last || k >= (L.len[col] ?? 0)) return -1;
-        return L.start[col] - k;
-      };
-      const newest = L.start[last - 1] - L.len[last - 1] + 1, oldest = L.start[first];
-      $range.textContent = `Rounds ${rid(oldest)} → ${rid(newest)} · ${L.cols.toLocaleString()} columns`;
-      $legend.innerHTML = `<span class="lo">●</span> below ${point}× &nbsp; <span class="hi">●</span> ${point}× and up &nbsp; · one column per streak`;
-      return;
+    $grid.style.width = V * cell + "px";
+    $grid.style.height = rows * cell + "px";
+    $grid.style.backgroundSize = `${cell}px ${cell}px`;
+    const size = cell - 4;
+    let html = "", newest = -1, oldest = -1;
+    for (let i = 0; i < n; i++) {
+      const c = L.col[i];
+      if (c < first || c >= last) continue;
+      if (newest < 0) newest = i;
+      oldest = i;
+      const x = crashes[i];
+      const tone = x < point ? "lo" : x >= big ? "bg" : "hi";
+      const m = marks.get(i);
+      const id = roundId(i);
+      html += `<span class="tb-ball ${tone}${m ? " " + m : ""}" data-i="${i}" title="${id != null ? "Round " + id + " · " : ""}${fmt(x)}"` +
+        ` style="left:${(c - first) * cell + 2}px;top:${L.row[i] * cell + 2}px;width:${size}px;height:${size}px"></span>`;
     }
-
-    // ---- Chart ----
-    const R = Math.min(zoom, n);
-    setPan(Math.max(0, n - R));
-    const newest = offset, oldest = offset + R - 1; // indexes (0 = newest)
-    const top = 8, bottom = height - 16, plotH = bottom - top;
-    let maxX = 2;
-    for (let i = newest; i <= oldest; i++) if (crashes[i] > maxX) maxX = crashes[i];
-    const capY = Math.min(Math.max(10, maxX), 10000);
-    const y = (x) => bottom - (Math.log(Math.min(x, capY)) / Math.log(capY)) * plotH;
-
-    // Grid
-    ctx.font = "10px system-ui, sans-serif";
-    ctx.fillStyle = C.muted;
-    ctx.strokeStyle = C.line;
-    ctx.lineWidth = 1;
-    for (const g of [1, 2, 5, 10, 100, 1000, 10000]) {
-      if (g > capY) break;
-      ctx.beginPath(); ctx.moveTo(0, y(g) + 0.5); ctx.lineTo(w, y(g) + 0.5); ctx.stroke();
-      ctx.fillText(g + "×", 2, y(g) - 2);
-    }
-
-    const perPx = R / w;
-    const grouped = perPx >= 2; // otherwise draw every round
-    const color = (x) => (x >= 10 ? C.big : x >= point ? C.high : C.low);
-    const rate = []; // share at/above point per x, for the line
-    if (!grouped) {
-      const bw = w / R;
-      for (let j = 0; j < R; j++) {
-        const i = oldest - j; // left = oldest
-        const x = crashes[i];
-        ctx.fillStyle = color(x);
-        ctx.fillRect(j * bw + (bw > 3 ? 0.5 : 0), y(x), Math.max(1, bw - (bw > 3 ? 1 : 0)), bottom - y(x) || 1);
-        // rolling share over the previous 50 rounds
-        let a = 0, m = 0;
-        for (let k = i; k < Math.min(i + 50, n); k++, m++) if (crashes[k] >= point) a++;
-        rate.push([j * bw + bw / 2, a / m]);
-      }
-      hit = (px) => { const j = Math.floor(px / bw); return j >= 0 && j < R ? oldest - j : -1; };
-    } else {
-      for (let px = 0; px < w; px++) {
-        const a0 = oldest - Math.floor(px * perPx), a1 = Math.max(newest, oldest - Math.floor((px + 1) * perPx) + 1);
-        let mx = 0, up = 0, cnt = 0;
-        for (let i = a0; i >= a1; i--) { const x = crashes[i]; if (x > mx) mx = x; if (x >= point) up++; cnt++; }
-        if (!cnt) continue;
-        ctx.fillStyle = color(mx);
-        ctx.globalAlpha = 0.55;
-        ctx.fillRect(px, y(mx), 1, bottom - y(mx));
-        ctx.globalAlpha = 1;
-        rate.push([px + 0.5, up / cnt]);
-      }
-      hit = (px) => { const i = oldest - Math.floor(px * perPx); return i >= newest && i <= oldest ? i : -1; };
-    }
-
-    // Payout point line
-    ctx.setLineDash([4, 3]);
-    ctx.strokeStyle = C.text;
-    ctx.beginPath(); ctx.moveTo(0, y(point) + 0.5); ctx.lineTo(w, y(point) + 0.5); ctx.stroke();
-    ctx.setLineDash([]);
-
-    // Share-at-or-above line (0% bottom, 100% top)
-    ctx.strokeStyle = C.accent;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    rate.forEach(([x, r], k) => (k ? ctx.lineTo(x, bottom - r * plotH) : ctx.moveTo(x, bottom - r * plotH)));
-    ctx.stroke();
-    ctx.lineWidth = 1;
-
-    $range.textContent = `Rounds ${rid(oldest)} → ${rid(newest)}`;
-    $legend.innerHTML = `Bars: multiplier (log scale)${grouped ? `, highest per ${Math.round(perPx).toLocaleString()} rounds` : ""} · dashed: ${point}× · ` +
-      `<span style="color:var(--accent)">line</span>: share of rounds at or above ${point}× (${grouped ? "per bar" : "last 50"}, 0–100%)`;
+    $grid.innerHTML = html;
+    $page.max = String(pages);
+    $page.value = String(pages - fromNewest);
+    $pages.textContent = pages.toLocaleString();
+    root.querySelector('[data-go="first"]').disabled = root.querySelector('[data-go="prev"]').disabled = fromNewest >= pages - 1;
+    root.querySelector('[data-go="last"]').disabled = root.querySelector('[data-go="next"]').disabled = fromNewest === 0;
+    const rid = (i) => roundId(i) ?? `#${i + 1}`;
+    $range.textContent = n ? `Rounds ${rid(oldest)} → ${rid(newest)}${fromNewest === 0 ? " (newest)" : ""}` : "";
   }
 
-  // Hover tooltip
-  canvas.addEventListener("mousemove", (e) => {
-    const rect = canvas.getBoundingClientRect();
-    const i = hit ? hit(e.clientX - rect.left, e.clientY - rect.top) : -1;
-    const crashes = getCrashes();
-    if (i < 0 || i >= crashes.length) { $tip.hidden = true; return; }
-    const r = getRoundId(i);
-    $tip.textContent = `${r != null ? "Round " + r : "#" + (i + 1)}: ${fmt(crashes[i])}`;
-    $tip.hidden = false;
-    $tip.style.left = Math.min(e.clientX - rect.left + 10, rect.width - 130) + "px";
-    $tip.style.top = Math.max(0, e.clientY - rect.top - 28) + "px";
-  });
-  canvas.addEventListener("mouseleave", () => ($tip.hidden = true));
+  root.querySelectorAll("[data-go]").forEach((b) => (b.onclick = () => {
+    const go = b.dataset.go;
+    fromNewest = go === "last" ? 0 : go === "first" ? Infinity : go === "prev" ? fromNewest + 1 : fromNewest - 1;
+    draw();
+  }));
+  $page.onchange = () => {
+    const pages = Number($page.max) || 1;
+    const p = Math.round(Number($page.value));
+    if (p >= 1) { fromNewest = pages - Math.min(p, pages); }
+    draw();
+  };
+  $grid.onclick = (e) => {
+    const i = Number(e.target.closest("[data-i]")?.dataset.i);
+    if (Number.isInteger(i)) onPick?.(i);
+  };
+  if (typeof ResizeObserver !== "undefined") new ResizeObserver(() => draw()).observe($board);
 
-  $pan.oninput = () => { offset = Number($pan.max) - Number($pan.value); draw(); };
-  $zoom.value = String(zoom);
-  $zoom.onchange = () => { zoom = Number($zoom.value); offset = 0; draw(); };
-  root.querySelectorAll("[data-view]").forEach((b) => (b.onclick = () => { view = b.dataset.view; offset = 0; draw(); }));
-  if (typeof ResizeObserver !== "undefined") new ResizeObserver(() => draw()).observe(root);
-
-  draw();
-  return { render: draw };
+  return {
+    render(s) { state = s; draw(); },
+    /** Show the page holding round index i. */
+    focus(i) {
+      if (!L || i >= L.col.length) return;
+      const V = perPage();
+      const pages = Math.max(1, Math.ceil(L.cols / V));
+      // Pages are counted from the newest end, matching draw().
+      fromNewest = Math.min(pages - 1, Math.floor((L.cols - 1 - L.col[i]) / V));
+      draw();
+    },
+  };
 }
 
 export const TREND_CSS = `
-  .tr-head { display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom:8px; }
-  .tr-head button { font:inherit; font-size:12px; color:var(--text); background:#252a35; border:1px solid var(--line); border-radius:5px; padding:3px 10px; cursor:pointer; }
-  .tr-head button.on { background:var(--accent); border-color:var(--accent); color:#fff; }
-  .tr-head select { font:inherit; font-size:12px; color:var(--text); background:var(--bg); border:1px solid var(--line); border-radius:5px; padding:3px 6px; }
-  .tr-range { margin-left:auto; color:var(--muted); font-size:11px; }
-  .tr-canvaswrap { position:relative; }
-  .tr-canvaswrap canvas { display:block; width:100%; background:var(--bg); border-radius:6px; }
-  .tr-tip { position:absolute; pointer-events:none; background:#000c; color:#fff; font-size:11px; padding:3px 7px; border-radius:4px; white-space:nowrap; }
-  .tr-pan { width:100%; margin:8px 0 2px; accent-color:var(--accent); }
-  .tr-legend { color:var(--muted); font-size:11px; }
+  .tb-board { overflow:hidden; }
+  .tb-grid { position:relative; margin:0 auto; border-radius:6px; background-color:var(--bg);
+    background-image:linear-gradient(to right, var(--grid) 1px, transparent 1px), linear-gradient(to bottom, var(--grid) 1px, transparent 1px); }
+  .tb-ball { position:absolute; border-radius:50%; cursor:pointer; box-shadow:inset 0 -2px 3px #0005, inset 0 2px 2px #fff3; }
+  .tb-ball.lo { background:var(--low); } .tb-ball.hi { background:var(--high); } .tb-ball.bg { background:var(--big); }
+  .tb-ball.max { outline:2px solid #fff; outline-offset:1px; }
+  .tb-ball.pick { outline:2px solid var(--accent); outline-offset:1px; animation:tbpulse 1s ease-in-out 3; }
+  @keyframes tbpulse { 50% { transform:scale(1.35); } }
+  .tb-pager { display:flex; justify-content:center; align-items:center; gap:4px; margin-top:8px; color:var(--muted); font-size:12px; }
+  .tb-pager button { min-width:30px; padding:3px 0; }
+  .tb-pager button:disabled { opacity:.35; cursor:default; }
+  .tb-page input { width:64px; text-align:center; padding:3px 4px; font:12px system-ui, sans-serif; }
+  .tb-range { text-align:center; color:var(--muted); font-size:11px; margin-top:4px; }
 `;
