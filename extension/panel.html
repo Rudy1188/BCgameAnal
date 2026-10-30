@@ -18,6 +18,18 @@
   .live.on { color:var(--high); }
   #autoStatus { margin:0 0 6px; }
 
+  .gear { all:unset; cursor:pointer; color:var(--muted); display:flex; padding:2px; border-radius:4px; }
+  .gear:hover, .gear.on { color:var(--text); background:#252a35; }
+  .set-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+  .set-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px 12px; }
+  .set-grid label { display:flex; justify-content:space-between; align-items:center; gap:6px; color:var(--muted); }
+  .set-grid label > span { display:flex; align-items:center; gap:6px; }
+  .set-grid input[type=number] { width:64px; font:12px system-ui, sans-serif; padding:3px 6px; }
+  .set-grid input[type=range] { width:90px; accent-color:var(--accent); }
+  .set-grid output { width:34px; text-align:right; color:var(--text); font-size:11px; }
+  .set-colors { display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; margin-top:8px; }
+  .set-colors label { display:flex; align-items:center; gap:6px; color:var(--muted); font-size:11px; }
+  .set-colors input { width:26px; height:20px; padding:0; border:1px solid var(--line); border-radius:4px; background:none; cursor:pointer; }
   .trend-card { background:var(--layer); }
   .legend { display:flex; gap:12px; flex-wrap:wrap; color:var(--muted); font-size:11px; margin-bottom:6px; }
   .legend i { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:4px; vertical-align:-1px; }
@@ -44,17 +56,35 @@
     <div class="tools">
       <span class="live" id="live"></span>
       <button class="link" id="refresh" title="Read the newest round from this page">Refresh</button>
-      <button class="link" id="reset" title="Forget the saved round">Reset</button>
+      <button class="gear" id="gear" title="Trend settings"><svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.5 7.5 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.5 7.5 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.5 7.5 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7.5 7.5 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg></button>
     </div>
   </div>
   <div class="status" id="autoStatus"></div>
+
+  <section class="card settings" id="settings" hidden>
+    <div class="set-head"><b>Trend settings</b><button class="link" id="setDefault">Default</button></div>
+    <div class="set-grid">
+      <label>Rows <input type="number" id="sRows" min="4" max="20" step="1"></label>
+      <label>Columns <input type="number" id="sCols" min="10" max="60" step="1"></label>
+      <label>Cell size <span><input type="range" id="sCell" min="10" max="30" step="1"><output id="oCell"></output></span></label>
+      <label>Ball size <span><input type="range" id="sDot" min="30" max="100" step="5"><output id="oDot"></output></span></label>
+    </div>
+    <div class="set-colors">
+      <label><input type="color" id="cBust"> 1.00×</label>
+      <label><input type="color" id="cLow"> below 2×</label>
+      <label><input type="color" id="cHigh"> 2× and up</label>
+      <label><input type="color" id="cBig"> 10× and up</label>
+      <label><input type="color" id="cCell"> cell</label>
+      <label><input type="color" id="cLayer"> background</label>
+    </div>
+  </section>
 
   <div id="main" hidden>
     <section class="card trend-card">
       <div class="legend">
         <span><i style="background:var(--bust)"></i>1.00×</span>
-        <span><i style="background:var(--low)"></i>below <span class="pt-label"></span></span>
-        <span><i style="background:var(--high)"></i><span class="pt-label"></span> and up</span>
+        <span><i style="background:var(--low)"></i>below 2×</span>
+        <span><i style="background:var(--high)"></i>2× and up</span>
         <span><i style="background:var(--big)"></i>10× and up</span>
       </div>
       <div id="trend"></div>

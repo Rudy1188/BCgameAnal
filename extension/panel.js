@@ -7,7 +7,7 @@ import { updateFromTab } from "./latest.js";
 const $ = (id) => document.getElementById(id);
 const fmt = (x) => x.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "×";
 const num = (n) => n.toLocaleString();
-const tone = (x, point = 2) => (x <= 1 ? "bust" : x < point ? "lo" : x >= 10 ? "bg" : "hi");
+const tone = (x) => (x <= 1 ? "bust" : x < 2 ? "lo" : x >= 10 ? "bg" : "hi");
 const short = (n) => (n >= 1000 ? n / 1000 + "K" : String(n));
 
 document.head.append(Object.assign(document.createElement("style"), { textContent: TREND_CSS }));
@@ -40,13 +40,61 @@ function rebuild() {
   for (let i = 0; i < total; i++) data[i] = i < p ? pending[p - 1 - i].c : base[i - p];
 }
 
-const trend = createTrendPanel($("trend"), { rows: 10, cols: 30 });
+// ---- Trend look (Settings): board size, ball size and colours, saved in chrome.storage ----
+const STYLE_DEFAULT = { rows: 10, cols: 30, cell: 18, dot: 60,
+  colors: { bust: "#f0443b", low: "#ffad4d", high: "#24ee89", big: "#ebf005", cell: "#1f2226", layer: "#2b2f33" } };
+const COLOR_INPUTS = { bust: "cBust", low: "cLow", high: "cHigh", big: "cBig", cell: "cCell", layer: "cLayer" };
+let look = structuredClone(STYLE_DEFAULT);
+const clampInt = (v, lo, hi, d) => (Number.isFinite(+v) ? Math.max(lo, Math.min(hi, Math.round(+v))) : d);
+
+function makeTrend() {
+  const gap = Math.max(1, Math.round(look.cell / 9));
+  return createTrendPanel($("trend"), { rows: look.rows, cols: look.cols, cell: look.cell, gap, dot: look.dot / 100 });
+}
+
+function applyLook(rebuildBoard) {
+  for (const [k, v] of Object.entries(look.colors)) document.documentElement.style.setProperty("--" + k, v);
+  $("sRows").value = look.rows; $("sCols").value = look.cols;
+  $("sCell").value = look.cell; $("oCell").textContent = look.cell + "px";
+  $("sDot").value = look.dot; $("oDot").textContent = look.dot + "%";
+  for (const [k, id] of Object.entries(COLOR_INPUTS)) $(id).value = look.colors[k];
+  if (rebuildBoard) trend = makeTrend();
+  render();
+}
+
+// Width the panel needs to show the whole board (board + paddings + borders).
+const fitWidth = () => {
+  const gap = Math.max(1, Math.round(look.cell / 9));
+  parent.postMessage({ __bcTrendPanel: "fitWidth", w: Math.max(420, look.cols * (look.cell + gap) - gap + 44) }, "*");
+};
+
+let saveTimer = 0;
+function changeLook(mutate, { board = false } = {}) {
+  mutate(look);
+  look.rows = clampInt(look.rows, 4, 20, 10);
+  look.cols = clampInt(look.cols, 10, 60, 30);
+  look.cell = clampInt(look.cell, 10, 30, 18);
+  look.dot = clampInt(look.dot, 30, 100, 60);
+  applyLook(board);
+  if (board) fitWidth();
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => chrome.storage.local.set({ trendStyle: look }), 300);
+}
+
+$("gear").onclick = () => { $("settings").hidden = !$("settings").hidden; $("gear").classList.toggle("on", !$("settings").hidden); };
+$("sRows").onchange = () => changeLook((l) => (l.rows = $("sRows").value), { board: true });
+$("sCols").onchange = () => changeLook((l) => (l.cols = $("sCols").value), { board: true });
+$("sCell").oninput = () => changeLook((l) => (l.cell = $("sCell").value), { board: true });
+$("sDot").oninput = () => changeLook((l) => (l.dot = $("sDot").value), { board: true });
+for (const [k, id] of Object.entries(COLOR_INPUTS)) $(id).oninput = () => changeLook((l) => (l.colors[k] = $(id).value));
+$("setDefault").onclick = () => changeLook((l) => Object.assign(l, structuredClone(STYLE_DEFAULT)), { board: true });
+
+let trend = makeTrend();
 
 function render() {
   const { count, point } = settings;
   $("count").value = String(count);
   $("point").value = String(point);
-  document.querySelectorAll(".pt-label").forEach((e) => (e.textContent = point + "×"));
   $("chips").innerHTML =
     COUNTS.map((c) => `<button data-c="${c}" class="${c === count ? "on" : ""}">${short(c)}</button>`).join("") +
     `<span class="sep"></span>` +
@@ -61,7 +109,8 @@ function render() {
       `<tr><td class="${s.cls}">${s.label}</td><td>${s.chance.toFixed(2)}%</td><td>${num(s.count)}</td><td>${s.maxCombo}</td></tr>`).join("");
     $("note").textContent = n < count ? progress || `Only ${num(n)} rounds calculated so far.` : "";
   }
-  trend.render({ crashes: data, n, point, big: 10, roundId });
+  // The trend always uses 2× (like bc.game), whatever payout the table uses.
+  trend.render({ crashes: data, n, point: 2, big: 10, roundId });
 }
 
 // ---- Controls ----
@@ -108,7 +157,7 @@ function showLatest() {
   const p = pending.length;
   const newest = p ? pending[p - 1].c : latest.crash;
   $("roundLine").innerHTML = `<span class="muted">Round</span> <b>${latest.roundId != null ? latest.roundId + p : "?"}</b> ` +
-    `<span class="crash ${tone(newest, settings.point)}">${fmt(newest)}</span>`;
+    `<span class="crash ${tone(newest)}">${fmt(newest)}</span>`;
 }
 
 let lastUpdate = 0;
@@ -153,10 +202,11 @@ async function autoUpdate() {
 }
 $("refresh").onclick = autoUpdate;
 
-$("reset").onclick = async () => {
-  if (confirm("Forget the saved round and history?")) await chrome.runtime.sendMessage({ type: "reset" });
-};
-
+{
+  const { trendStyle } = await chrome.storage.local.get("trendStyle");
+  if (trendStyle) look = { ...structuredClone(STYLE_DEFAULT), ...trendStyle, colors: { ...STYLE_DEFAULT.colors, ...trendStyle.colors } };
+  applyLook(true);
+}
 await load();
 // Clicking bc.game's round box on every page load would be distracting: only do it
 // when nothing is saved yet or the saved round is old. New rounds arrive on their own.

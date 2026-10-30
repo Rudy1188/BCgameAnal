@@ -59,11 +59,11 @@ function roundRect(ctx, x, y, s, r) {
 
 /**
  * Like bc.game's trend: a rounded square per cell with a small dot (60% of the
- * square) inside. Dot colours: red 1.00×, orange below the payout point,
+ * square, `dot`) inside. Dot colours: red 1.00×, orange below the payout point,
  * green at or above it, yellow 10× and up. `cols` columns are visible at once.
  * render({ crashes, n, point, big, roundId(i) })
  */
-export function createTrendPanel(root, { rows = 10, cols: visibleCols = 30, cell = 18, gap = 2 } = {}) {
+export function createTrendPanel(root, { rows = 10, cols: visibleCols = 30, cell = 18, gap = 2, dot = 0.6 } = {}) {
   let state = null;
   let L = null, Lkey = "", cellAt = null; // cellAt[col * rows + row] = round index or -1
   let follow = true; // keep the newest end in view
@@ -109,12 +109,12 @@ export function createTrendPanel(root, { rows = 10, cols: visibleCols = 30, cell
     // cells
     ctx.fillStyle = C.cell;
     ctx.beginPath();
-    for (let c = c0; c < c1; c++) for (let r = 0; r < rows; r++) roundRect(ctx, c * pitch - left, r * pitch, cell, 4);
+    for (let c = c0; c < c1; c++) for (let r = 0; r < rows; r++) roundRect(ctx, c * pitch - left, r * pitch, cell, Math.min(4, cell / 4));
     ctx.fill();
 
     // dots
     const { crashes, point, big = 10 } = state;
-    const rad = (cell * 0.6) / 2;
+    const rad = (cell * dot) / 2;
     for (let c = c0; c < Math.min(c1, L.cols); c++) {
       for (let r = 0; r < rows; r++) {
         const i = cellAt[c * rows + r];

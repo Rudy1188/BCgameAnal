@@ -69,7 +69,9 @@ if (!window.__bcTrendOverlay) {
 
   // The panel reports its height so the frame fits it without a scrollbar.
   window.addEventListener("message", (e) => {
-    if (!frame || e.source !== frame.contentWindow || e.data?.__bcTrendPanel !== "height") return;
+    if (!frame || e.source !== frame.contentWindow) return;
+    if (e.data?.__bcTrendPanel === "fitWidth") { st.width = Math.max(300, Number(e.data.w) || st.width); place(); save(); return; }
+    if (e.data?.__bcTrendPanel !== "height") return;
     frameH = Math.max(80, Number(e.data.h) || 0);
     place();
   });
