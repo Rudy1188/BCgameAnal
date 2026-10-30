@@ -19,7 +19,7 @@ Tools for BC.Game Crash's provably-fair hashes: get the latest round's hash, sal
 
 ### Trend
 - Styled like bc.game's own trend: a rounded square per round with a small dot inside, 30 columns × 10 rows on screen.
-- **Red** 1.00× (instant crash), **orange** below 2×, **green** 2× and up, **yellow** 10× and up (counted on the green side). The trend always uses 2×, like bc.game; the payout box only changes the stats table.
+- **Red** 1.00× (instant crash), **orange** below 2×, **green** 2× and up, **yellow** 10× and up, **white** 100× and up (both counted on the green side). The trend always uses 2×, like bc.game; the payout box only changes the stats table.
 - **Settings** (gear icon, top right): rows (4–20), columns (10–60), cell size, ball size, and every colour (balls, cells, background). **Default** puts them back. Settings are saved, and the panel resizes to fit the board.
 - Each streak fills a column from top to bottom; a streak longer than 10 turns right along the bottom row (L-shape) instead of starting a new column. The next streak starts in the next column and stops above that tail.
 - Scroll sideways (scrollbar or mouse wheel) through all the selected rounds, up to 100,000. The newest round is on the right, and the view follows new rounds unless you scrolled back.

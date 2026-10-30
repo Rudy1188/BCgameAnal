@@ -7,7 +7,7 @@ import { updateFromTab } from "./latest.js";
 const $ = (id) => document.getElementById(id);
 const fmt = (x) => x.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "×";
 const num = (n) => n.toLocaleString();
-const tone = (x) => (x <= 1 ? "bust" : x < 2 ? "lo" : x >= 10 ? "bg" : "hi");
+const tone = (x) => (x <= 1 ? "bust" : x < 2 ? "lo" : x >= 100 ? "huge" : x >= 10 ? "bg" : "hi");
 const short = (n) => (n >= 1000 ? n / 1000 + "K" : String(n));
 
 document.head.append(Object.assign(document.createElement("style"), { textContent: TREND_CSS }));
@@ -42,8 +42,8 @@ function rebuild() {
 
 // ---- Trend look (Settings): board size, ball size and colours, saved in chrome.storage ----
 const STYLE_DEFAULT = { rows: 10, cols: 30, cell: 18, dot: 60,
-  colors: { bust: "#f0443b", low: "#ffad4d", high: "#24ee89", big: "#ebf005", cell: "#1f2226", layer: "#2b2f33" } };
-const COLOR_INPUTS = { bust: "cBust", low: "cLow", high: "cHigh", big: "cBig", cell: "cCell", layer: "cLayer" };
+  colors: { bust: "#f0443b", low: "#ffad4d", high: "#24ee89", big: "#ebf005", huge: "#ffffff", cell: "#1f2226", layer: "#2b2f33" } };
+const COLOR_INPUTS = { bust: "cBust", low: "cLow", high: "cHigh", big: "cBig", huge: "cHuge", cell: "cCell", layer: "cLayer" };
 let look = structuredClone(STYLE_DEFAULT);
 const clampInt = (v, lo, hi, d) => (Number.isFinite(+v) ? Math.max(lo, Math.min(hi, Math.round(+v))) : d);
 

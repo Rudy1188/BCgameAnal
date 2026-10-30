@@ -1,5 +1,6 @@
 // Trend ball panel, like bc.game's: red for 1.00×, orange below the payout point,
-// green at or above it, yellow for big rounds (10× and up, still on the green side).
+// green at or above it, yellow for big rounds (10× and up), white for 100× and up
+// (both still on the green side).
 // Each streak fills a column top to bottom; a streak longer than the rows
 // turns right along the bottom (L-shape) instead of starting a new column.
 // The board scrolls sideways (newest on the right) and is drawn on a canvas,
@@ -43,7 +44,7 @@ export function layoutBalls(crashes, n, point, rows = 10) {
 const colors = () => {
   const s = getComputedStyle(document.documentElement);
   const v = (n, d) => s.getPropertyValue(n).trim() || d;
-  return { bust: v("--bust", "#f0443b"), low: v("--low", "#ffad4d"), high: v("--high", "#24ee89"), big: v("--big", "#ebf005"),
+  return { bust: v("--bust", "#f0443b"), low: v("--low", "#ffad4d"), high: v("--high", "#24ee89"), big: v("--big", "#ebf005"), huge: v("--huge", "#ffffff"),
            cell: v("--cell", "#1f2226"), bg: v("--layer", "#2b2f33") };
 };
 
@@ -60,7 +61,7 @@ function roundRect(ctx, x, y, s, r) {
 /**
  * Like bc.game's trend: a rounded square per cell with a small dot (60% of the
  * square, `dot`) inside. Dot colours: red 1.00×, orange below the payout point,
- * green at or above it, yellow 10× and up. `cols` columns are visible at once.
+ * green at or above it, yellow 10× and up, white 100× and up. `cols` columns are visible at once.
  * render({ crashes, n, point, big, roundId(i) })
  */
 export function createTrendPanel(root, { rows = 10, cols: visibleCols = 30, cell = 18, gap = 2, dot = 0.6 } = {}) {
@@ -120,7 +121,7 @@ export function createTrendPanel(root, { rows = 10, cols: visibleCols = 30, cell
         const i = cellAt[c * rows + r];
         if (i < 0) continue;
         const x = crashes[i];
-        ctx.fillStyle = x <= 1 ? C.bust : x < point ? C.low : x >= big ? C.big : C.high;
+        ctx.fillStyle = x <= 1 ? C.bust : x < point ? C.low : x >= 100 ? C.huge : x >= big ? C.big : C.high;
         ctx.beginPath();
         ctx.arc(c * pitch - left + cell / 2, r * pitch + cell / 2, rad, 0, Math.PI * 2);
         ctx.fill();
