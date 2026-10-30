@@ -18,7 +18,8 @@
   .live.on { color:var(--high); }
   #autoStatus { margin:0 0 6px; }
 
-  .legend { display:flex; gap:12px; color:var(--muted); font-size:11px; margin-bottom:6px; }
+  .trend-card { background:var(--layer); }
+  .legend { display:flex; gap:12px; flex-wrap:wrap; color:var(--muted); font-size:11px; margin-bottom:6px; }
   .legend i { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:4px; vertical-align:-1px; }
 
   .an-head { display:flex; gap:5px; align-items:center; flex-wrap:wrap; color:var(--muted); }
@@ -49,8 +50,9 @@
   <div class="status" id="autoStatus"></div>
 
   <div id="main" hidden>
-    <section class="card">
+    <section class="card trend-card">
       <div class="legend">
+        <span><i style="background:var(--bust)"></i>1.00×</span>
         <span><i style="background:var(--low)"></i>below <span class="pt-label"></span></span>
         <span><i style="background:var(--high)"></i><span class="pt-label"></span> and up</span>
         <span><i style="background:var(--big)"></i>10× and up</span>
@@ -74,13 +76,6 @@
     </section>
   </div>
 
-  <details class="card">
-    <summary>Enter a round by hand</summary>
-    <div class="row"><input id="mRound" placeholder="Round ID, e.g. 9745447" inputmode="numeric"></div>
-    <div class="row"><input id="mHash" placeholder="Hash (64 hex characters)" spellcheck="false"></div>
-    <div class="row"><input id="mSalt" placeholder="Salt (leave empty for default)" spellcheck="false"><button id="mSave">Save</button></div>
-    <div class="status" id="mError"></div>
-  </details>
 </main>
 <script type="module" src="panel.js"></script>
 </body>

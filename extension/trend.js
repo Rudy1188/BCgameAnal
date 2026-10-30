@@ -1,5 +1,5 @@
-// Trend ball panel, like bc.game's: orange below the payout point, green at or
-// above it, yellow for big rounds (10× and up, still on the green side).
+// Trend ball panel, like bc.game's: red for 1.00×, orange below the payout point,
+// green at or above it, yellow for big rounds (10× and up, still on the green side).
 // Each streak fills a column top to bottom; a streak longer than the rows
 // turns right along the bottom (L-shape) instead of starting a new column.
 // The board scrolls sideways (newest on the right) and is drawn on a canvas,
@@ -43,14 +43,31 @@ export function layoutBalls(crashes, n, point, rows = 10) {
 const colors = () => {
   const s = getComputedStyle(document.documentElement);
   const v = (n, d) => s.getPropertyValue(n).trim() || d;
-  return { low: v("--low", "#ff7a1a"), high: v("--high", "#3bc117"), big: v("--big", "#f5c451"), grid: v("--grid", "#222733"), bg: v("--bg", "#0f1115") };
+  return { bust: v("--bust", "#f0443b"), low: v("--low", "#ffad4d"), high: v("--high", "#24ee89"), big: v("--big", "#ebf005"),
+           cell: v("--cell", "#1f2226"), bg: v("--layer", "#2b2f33") };
 };
 
-/** render({ crashes, n, point, big, roundId(i) }) */
-export function createTrendPanel(root, { rows = 10, cell = 20 } = {}) {
+// Rounded square for each cell, like bc.game's trend.
+function roundRect(ctx, x, y, s, r) {
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + s, y, x + s, y + s, r);
+  ctx.arcTo(x + s, y + s, x, y + s, r);
+  ctx.arcTo(x, y + s, x, y, r);
+  ctx.arcTo(x, y, x + s, y, r);
+  ctx.closePath();
+}
+
+/**
+ * Like bc.game's trend: a rounded square per cell with a small dot (60% of the
+ * square) inside. Dot colours: red 1.00×, orange below the payout point,
+ * green at or above it, yellow 10× and up. `cols` columns are visible at once.
+ * render({ crashes, n, point, big, roundId(i) })
+ */
+export function createTrendPanel(root, { rows = 10, cols: visibleCols = 30, cell = 18, gap = 2 } = {}) {
   let state = null;
   let L = null, Lkey = "", cellAt = null; // cellAt[col * rows + row] = round index or -1
   let follow = true; // keep the newest end in view
+  const pitch = cell + gap;
 
   root.innerHTML = `<div class="tb-scroll"><div class="tb-inner"><canvas></canvas></div></div><div class="tb-tip" hidden></div>`;
   const $scroll = root.querySelector(".tb-scroll");
@@ -58,8 +75,9 @@ export function createTrendPanel(root, { rows = 10, cell = 20 } = {}) {
   const canvas = root.querySelector("canvas");
   const ctx = canvas.getContext("2d");
   const $tip = root.querySelector(".tb-tip");
-  const H = rows * cell;
+  const H = rows * pitch - gap;
   $inner.style.height = canvas.style.height = H + "px";
+  $scroll.style.maxWidth = visibleCols * pitch - gap + "px";
 
   function relayout() {
     const { crashes, n, point } = state;
@@ -69,7 +87,7 @@ export function createTrendPanel(root, { rows = 10, cell = 20 } = {}) {
     Lkey = key;
     cellAt = new Int32Array(L.cols * rows).fill(-1);
     for (let i = 0; i < n; i++) cellAt[L.col[i] * rows + L.row[i]] = i;
-    $inner.style.width = L.cols * cell + "px";
+    $inner.style.width = Math.max(L.cols, visibleCols) * pitch - gap + "px";
   }
 
   function draw() {
@@ -86,29 +104,25 @@ export function createTrendPanel(root, { rows = 10, cell = 20 } = {}) {
     ctx.fillStyle = C.bg;
     ctx.fillRect(0, 0, w, H);
     const left = $scroll.scrollLeft;
-    const c0 = Math.floor(left / cell), c1 = Math.min(L.cols, Math.ceil((left + w) / cell));
-    const dx = -left;
+    const c0 = Math.floor(left / pitch), c1 = Math.ceil((left + w) / pitch);
 
-    // grid
-    ctx.strokeStyle = C.grid;
-    ctx.lineWidth = 1;
+    // cells
+    ctx.fillStyle = C.cell;
     ctx.beginPath();
-    for (let c = c0; c <= Math.max(c1, c0 + Math.ceil(w / cell)); c++) { const x = Math.round(c * cell + dx) + 0.5; ctx.moveTo(x, 0); ctx.lineTo(x, H); }
-    for (let r = 0; r <= rows; r++) { const y = Math.min(H - 0.5, r * cell + 0.5); ctx.moveTo(0, y); ctx.lineTo(w, y); }
-    ctx.stroke();
+    for (let c = c0; c < c1; c++) for (let r = 0; r < rows; r++) roundRect(ctx, c * pitch - left, r * pitch, cell, 4);
+    ctx.fill();
 
-    // balls
+    // dots
     const { crashes, point, big = 10 } = state;
-    const rad = cell / 2 - 2;
-    for (let c = c0; c < c1; c++) {
+    const rad = (cell * 0.6) / 2;
+    for (let c = c0; c < Math.min(c1, L.cols); c++) {
       for (let r = 0; r < rows; r++) {
         const i = cellAt[c * rows + r];
         if (i < 0) continue;
         const x = crashes[i];
-        const cx = c * cell + dx + cell / 2, cy = r * cell + cell / 2;
-        ctx.fillStyle = x < point ? C.low : x >= big ? C.big : C.high;
+        ctx.fillStyle = x <= 1 ? C.bust : x < point ? C.low : x >= big ? C.big : C.high;
         ctx.beginPath();
-        ctx.arc(cx, cy, rad, 0, Math.PI * 2);
+        ctx.arc(c * pitch - left + cell / 2, r * pitch + cell / 2, rad, 0, Math.PI * 2);
         ctx.fill();
       }
     }
@@ -125,7 +139,7 @@ export function createTrendPanel(root, { rows = 10, cell = 20 } = {}) {
   let raf = 0;
   $scroll.addEventListener("scroll", () => {
     $tip.hidden = true;
-    follow = $scroll.scrollLeft + $scroll.clientWidth >= $scroll.scrollWidth - cell;
+    follow = $scroll.scrollLeft + $scroll.clientWidth >= $scroll.scrollWidth - pitch;
     if (!raf) raf = requestAnimationFrame(() => { raf = 0; draw(); });
   });
   // Mouse wheel scrolls sideways.
@@ -136,7 +150,7 @@ export function createTrendPanel(root, { rows = 10, cell = 20 } = {}) {
   canvas.addEventListener("mousemove", (e) => {
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left, y = e.clientY - rect.top;
-    const c = Math.floor((x + $scroll.scrollLeft) / cell), r = Math.floor(y / cell);
+    const c = Math.floor((x + $scroll.scrollLeft) / pitch), r = Math.floor(y / pitch);
     const i = L && c >= 0 && c < L.cols && r >= 0 && r < rows ? cellAt[c * rows + r] : -1;
     if (i < 0) { $tip.hidden = true; return; }
     const id = state.roundId(i);
@@ -153,7 +167,7 @@ export function createTrendPanel(root, { rows = 10, cell = 20 } = {}) {
 
 export const TREND_CSS = `
   #trend { position:relative; }
-  .tb-scroll { overflow-x:auto; overflow-y:hidden; border-radius:6px; background:var(--bg); scrollbar-color:#3a4150 transparent; }
+  .tb-scroll { margin:0 auto; overflow-x:auto; overflow-y:hidden; scrollbar-width:thin; scrollbar-color:#454b52 transparent; padding-bottom:4px; }
   .tb-inner { position:relative; min-width:100%; }
   .tb-inner canvas { position:sticky; left:0; display:block; }
   .tb-tip { position:absolute; pointer-events:none; background:#000d; color:#fff; font-size:11px; padding:3px 7px; border-radius:4px; white-space:nowrap; z-index:2; }

@@ -1,5 +1,6 @@
 :root { --bg:#0f1115; --panel:#181b22; --line:#2a2f3a; --text:#e6e8ee; --muted:#8a91a3;
-        --low:#ff7a1a; --high:#3bc117; --big:#f5c451; --accent:#4f8cff; --grid:#222733; }
+        --low:#ffad4d; --high:#24ee89; --big:#ebf005; --bust:#f0443b; --accent:#4f8cff;
+        --layer:#2b2f33; --cell:#1f2226; }
 * { box-sizing:border-box; }
 body { margin:0; font:13px/1.45 system-ui, sans-serif; background:var(--bg); color:var(--text); }
 main { padding:14px; }
@@ -17,7 +18,7 @@ code { display:block; font:11px ui-monospace, Consolas, monospace; word-break:br
 .status { margin-top:8px; font-size:11px; color:var(--muted); white-space:pre-wrap; }
 .status:empty { display:none; }
 .ok { color:var(--high); } .warn { color:var(--big); } .err { color:var(--low); }
-.lo { color:var(--low); } .hi { color:var(--high); } .bg { color:var(--big); }
+.bust { color:var(--bust); } .lo { color:var(--low); } .hi { color:var(--high); } .bg { color:var(--big); }
 button { font:inherit; color:var(--text); background:#252a35; border:1px solid var(--line); border-radius:5px; padding:3px 9px; cursor:pointer; }
 button:hover { background:#2f3542; }
 button.link { background:none; border:0; color:var(--accent); padding:0; font-size:11px; }

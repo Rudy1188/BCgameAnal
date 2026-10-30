@@ -1,5 +1,4 @@
 // The panel shown inside the bc.game crash page (loaded in an iframe by overlay.js).
-import { DEFAULT_SALT, crashPoint, isHash } from "./crash.js";
 import { MAX_COUNT, DEFAULT_COUNT, COUNTS, POINTS, analyze } from "./analysis.js";
 import { TREND_CSS, createTrendPanel } from "./trend.js";
 import { Chain } from "./chain.js";
@@ -8,7 +7,7 @@ import { updateFromTab } from "./latest.js";
 const $ = (id) => document.getElementById(id);
 const fmt = (x) => x.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "×";
 const num = (n) => n.toLocaleString();
-const tone = (x, point = 2) => (x < point ? "lo" : x >= 10 ? "bg" : "hi");
+const tone = (x, point = 2) => (x <= 1 ? "bust" : x < point ? "lo" : x >= 10 ? "bg" : "hi");
 const short = (n) => (n >= 1000 ? n / 1000 + "K" : String(n));
 
 document.head.append(Object.assign(document.createElement("style"), { textContent: TREND_CSS }));
@@ -41,7 +40,7 @@ function rebuild() {
   for (let i = 0; i < total; i++) data[i] = i < p ? pending[p - 1 - i].c : base[i - p];
 }
 
-const trend = createTrendPanel($("trend"), { rows: 10, cell: 20 });
+const trend = createTrendPanel($("trend"), { rows: 10, cols: 30 });
 
 function render() {
   const { count, point } = settings;
@@ -156,21 +155,6 @@ $("refresh").onclick = autoUpdate;
 
 $("reset").onclick = async () => {
   if (confirm("Forget the saved round and history?")) await chrome.runtime.sendMessage({ type: "reset" });
-};
-
-$("mSave").onclick = async () => {
-  const roundText = $("mRound").value.trim();
-  const hash = $("mHash").value.trim().toLowerCase();
-  const salt = $("mSalt").value.trim().toLowerCase() || latest?.salt || DEFAULT_SALT;
-  if (!isHash(hash)) return ($("mError").textContent = "Hash must be 64 hex characters.");
-  if (!isHash(salt)) return ($("mError").textContent = "Salt must be 64 hex characters.");
-  if (roundText && !/^\d+$/.test(roundText)) return ($("mError").textContent = "Round ID must be a number.");
-  $("mError").textContent = "";
-  await chrome.storage.local.set({
-    latest: { roundId: roundText ? Number(roundText) : null, hash, salt, crash: crashPoint(hash, salt), verified: false, source: "manual", seenAt: Date.now() },
-    salt,
-    pending: [],
-  });
 };
 
 await load();

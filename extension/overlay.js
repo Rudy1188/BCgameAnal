@@ -6,8 +6,8 @@
 if (!window.__bcTrendOverlay) {
   window.__bcTrendOverlay = true;
 
-  const KEY = "overlay";
-  const DEFAULT = { left: null, top: 80, width: 400, collapsed: false, closed: false };
+  const KEY = "overlay-v2"; // v2: wider default for the 30-column trend
+  const DEFAULT = { left: null, top: 80, width: 640, collapsed: false, closed: false };
   let st = { ...DEFAULT };
   let host = null, box = null, frame = null, frameH = 300;
 
