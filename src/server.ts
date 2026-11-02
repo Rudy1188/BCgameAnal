@@ -9,6 +9,12 @@ const HOST = process.env.HOST ?? "127.0.0.1";
 const MAX_COUNT = 10000;
 const siteDir = fileURLToPath(new URL("../site/", import.meta.url));
 const calculatorPath = fileURLToPath(new URL("../public/index.html", import.meta.url));
+const manifestPath = fileURLToPath(new URL("../extension/manifest.json", import.meta.url));
+
+// Current extension version, put into pages as {{VERSION}} (also busts caches on the download link).
+async function extensionVersion() {
+  try { return JSON.parse(await readFile(manifestPath, "utf8")).version as string; } catch { return ""; }
+}
 
 const TYPES: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -34,10 +40,11 @@ async function serveSite(pathname: string, res: import("node:http").ServerRespon
   const rel = ROUTES[pathname] ?? normalize(decodeURIComponent(pathname)).replace(/^[/\\]+/, "");
   if (rel.startsWith("..")) return false;
   try {
-    const body = await readFile(join(siteDir, rel));
+    let body: Buffer | string = await readFile(join(siteDir, rel));
+    if (rel.endsWith(".html")) body = body.toString("utf8").replaceAll("{{VERSION}}", await extensionVersion());
     const type = TYPES[extname(rel)] ?? "application/octet-stream";
     const headers: Record<string, string> = { "Content-Type": type, "X-Content-Type-Options": "nosniff" };
-    headers["Cache-Control"] = type.startsWith("text/html") ? "no-cache" : "public, max-age=3600";
+    headers["Cache-Control"] = type.startsWith("text/html") || rel.endsWith(".zip") ? "no-cache" : "public, max-age=3600";
     if (rel.endsWith(".zip")) headers["Content-Disposition"] = 'attachment; filename="bc-watchdog.zip"';
     res.writeHead(200, headers);
     res.end(body);
