@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "BC Watchdog",
-  "version": "3.1.0",
+  "version": "1.0.5",
   "description": "Live bc.game Crash trend balls and stats from the provably-fair hash chain, shown inside the crash page.",
   "permissions": [
     "storage",
