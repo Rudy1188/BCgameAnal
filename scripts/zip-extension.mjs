@@ -12,7 +12,9 @@ execFileSync("python3", ["-I", "-c", `
 import os, sys, zipfile
 src, out = sys.argv[1], sys.argv[2]
 with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
-    for name in sorted(os.listdir(src)):
-        z.write(os.path.join(src, name), "bc-watchdog/" + name)
+    for folder, _, files in sorted(os.walk(src)):
+        for name in sorted(files):
+            path = os.path.join(folder, name)
+            z.write(path, "bc-watchdog/" + os.path.relpath(path, src))
 `, `${root}extension`, out]);
 console.log(`Wrote ${out}`);
