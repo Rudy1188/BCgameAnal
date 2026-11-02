@@ -1,4 +1,4 @@
-// Shows the trend panel inside the bc.game crash page: a floating box you can
+// Shows the trend panel inside the bc.game Crash and Limbo pages: a floating box you can
 // drag by its title bar, resize sideways, minimise and close. The panel itself
 // is panel.html in an iframe, so it runs as an extension page and the page's
 // own scripts and styles can't touch it. The toolbar icon shows/hides it.
@@ -11,7 +11,9 @@ if (!window.__bcTrendOverlay) {
   let st = { ...DEFAULT };
   let host = null, box = null, frame = null, frameH = 300;
 
-  const onCrashPage = () => /\/game\/crash/.test(location.pathname);
+  const pageGame = () => location.pathname.match(/\/game\/(crash|limbo)(\/|$)/)?.[1] ?? null;
+  const onGamePage = () => pageGame() != null;
+  let frameGame = null;
   const save = () => { try { chrome.storage.local.set({ [KEY]: st }); } catch {} };
 
   function build() {
@@ -33,12 +35,11 @@ if (!window.__bcTrendOverlay) {
         .box.collapsed { resize:none; }
       </style>
       <div class="box">
-        <div class="head"><b>BC Watchdog</b><button class="min" title="Minimise">\u2013</button><button class="close" title="Close (click the extension icon to show again)">\u00d7</button></div>
+        <div class="head"><b class="title">BC Watchdog</b><button class="min" title="Minimise">\u2013</button><button class="close" title="Close (click the extension icon to show again)">\u00d7</button></div>
         <iframe allow="clipboard-write"></iframe>
       </div>`;
     box = root.querySelector(".box");
     frame = root.querySelector("iframe");
-    frame.src = chrome.runtime.getURL("panel.html");
 
     root.querySelector(".min").onclick = () => { st.collapsed = !st.collapsed; apply(); save(); };
     root.querySelector(".close").onclick = () => { st.closed = true; apply(); save(); };
@@ -89,9 +90,16 @@ if (!window.__bcTrendOverlay) {
   }
 
   function apply() {
-    const show = onCrashPage() && !st.closed;
+    const show = onGamePage() && !st.closed;
     if (show && !host) build();
     if (!host) return;
+    // Load the panel for this game (again when the page switches between Crash and Limbo).
+    const g = pageGame();
+    if (g && g !== frameGame) {
+      frameGame = g;
+      frame.src = chrome.runtime.getURL(`panel.html?game=${g}`);
+      host.shadowRoot.querySelector(".title").textContent = `BC Watchdog · ${g === "limbo" ? "Limbo" : "Crash"}`;
+    }
     host.style.display = show ? "" : "none";
     box.classList.toggle("collapsed", st.collapsed);
     host.shadowRoot.querySelector(".min").textContent = st.collapsed ? "+" : "\u2013";
@@ -115,6 +123,6 @@ if (!window.__bcTrendOverlay) {
     if (!st.closed) st.collapsed = false;
     apply();
     save();
-    reply({ ok: true, onCrashPage: onCrashPage() });
+    reply({ ok: true, onGamePage: onGamePage() });
   });
 }

@@ -8,6 +8,7 @@
 import { DEFAULT_SALT, crashPoint, isHash, stepsAhead } from "./crash.js";
 
 let queue = Promise.resolve();
+const LIMBO_MAX = 100000;
 
 chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
   if (msg?.type === "candidate") {
@@ -24,6 +25,20 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
       await setBadge(msg.crashes[msg.crashes.length - 1]);
     }).catch((e) => console.warn("BC Crash Hash:", e));
     return;
+  }
+  if (msg?.type === "limboResults" && Array.isArray(msg.results)) {
+    // Limbo results read from the page's result row, oldest first. Kept up to 100,000.
+    queue = queue.then(async () => {
+      const { limbo = [] } = await chrome.storage.local.get("limbo");
+      for (const x of msg.results) if (x >= 1 && x < 1e9) limbo.push(x);
+      await chrome.storage.local.set({ limbo: limbo.length > LIMBO_MAX ? limbo.slice(-LIMBO_MAX) : limbo });
+      await setBadge(msg.results[msg.results.length - 1]);
+    }).catch((e) => console.warn("BC Watchdog:", e));
+    return;
+  }
+  if (msg?.type === "clearLimbo") {
+    queue = queue.then(() => chrome.storage.local.set({ limbo: [] })).then(() => reply({ ok: true }));
+    return true;
   }
   if (msg?.type === "reset") {
     queue = queue.then(() => chrome.storage.local.clear()).then(() => setBadge(null)).then(() => reply({ ok: true }));
@@ -71,7 +86,7 @@ async function setBadge(crash) {
   await chrome.action.setBadgeBackgroundColor({ color: crash >= 10 ? "#c99a1e" : crash >= 2 ? "#1f9d55" : "#e8650f" });
 }
 
-// ---- Toolbar button: show/hide the panel on the bc.game crash page ----
+// ---- Toolbar button: show/hide the panel on the bc.game Crash or Limbo page ----
 const CRASH_URL = "https://bc.game/game/crash";
 const isBc = (url) => /^https:\/\/([a-z0-9-]+\.)*bc\.game\//i.test(url ?? "");
 
@@ -95,5 +110,5 @@ chrome.action.onClicked.addListener(async (tab) => {
     await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js", "overlay.js"] });
     return;
   }
-  if (res && !res.onCrashPage) await chrome.tabs.update(tab.id, { url: new URL("/game/crash", tab.url).href });
+  if (res && !res.onGamePage) await chrome.tabs.update(tab.id, { url: new URL("/game/crash", tab.url).href });
 });

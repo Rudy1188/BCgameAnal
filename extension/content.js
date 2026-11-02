@@ -9,6 +9,8 @@ if (!window.__bcCrashHashContent) {
   window.__bcCrashHashContent = true;
 
   const HEX64 = /[0-9a-f]{64}/i;
+  // Which supported game this page is: "crash", "limbo" or null.
+  const game = () => location.pathname.match(/\/game\/(crash|limbo)(\/|$)/)?.[1] ?? null;
   const stats = { pageHashes: 0, boxReads: 0 };
 
   const send = (c) => {
@@ -102,7 +104,7 @@ if (!window.__bcCrashHashContent) {
   const tick = () => {
     scheduled = false;
     lastRun = Date.now();
-    try { readAndSend(); checkStrip(); } catch {}
+    try { if (game() === "crash") readAndSend(); checkStrip(); } catch {}
   };
   new MutationObserver(() => {
     if (scheduled) return;
@@ -122,7 +124,7 @@ if (!window.__bcCrashHashContent) {
   // multiplier with two decimals, like "1.23x". (Two decimals on purpose, so bet
   // panel buttons like "2x" are never clicked.)
   function findHistoryItems() {
-    const MULT = /^\s*\d+\.\d{2}\s*[x×]\s*$/i;
+    const MULT = /^\s*\d{1,3}(?:,?\d{3})*\.\d{2}\s*[x×]\s*$/i;
     const groups = new Map();
     for (const el of document.body.querySelectorAll("*")) {
       if (el.children.length > 2) continue;
@@ -143,12 +145,18 @@ if (!window.__bcCrashHashContent) {
   // Which end of the strip holds the newest round: "first" or "last".
   // Learned by watching where new results appear, or from a two-end check
   // the first time. Saved so later lookups click only one result.
-  let newestEnd = null;
-  chrome.storage.local.get("newestEnd").then((r) => { newestEnd = newestEnd ?? r.newestEnd ?? null; }, () => {});
+  // Kept per game (Crash and Limbo strips may run in different directions).
+  const ends = { crash: null, limbo: null };
+  const endKey = (g) => (g === "limbo" ? "newestEndLimbo" : "newestEnd");
+  chrome.storage.local.get(["newestEnd", "newestEndLimbo"]).then((r) => {
+    ends.crash = ends.crash ?? r.newestEnd ?? null;
+    ends.limbo = ends.limbo ?? r.newestEndLimbo ?? null;
+  }, () => {});
   const saveEnd = (end) => {
-    if (newestEnd === end) return;
-    newestEnd = end;
-    chrome.storage.local.set({ newestEnd: end }).catch(() => {});
+    const g = game() ?? "crash";
+    if (ends[g] === end) return;
+    ends[g] = end;
+    chrome.storage.local.set({ [endKey(g)]: end }).catch(() => {});
   };
 
   // ---- Live rounds from the strip ----
@@ -156,9 +164,11 @@ if (!window.__bcCrashHashContent) {
   // many new results were added and at which end. New multipliers are sent to
   // the extension so scores update every round, without clicking anything.
   // (They are confirmed later by the hash chain when the next hash is read.)
-  const MULT_TEXT = /^\s*(\d+\.\d{2})\s*[x×]\s*$/i;
+  const MULT_TEXT = /^\s*(\d{1,3}(?:,?\d{3})*\.\d{2})\s*[x×]\s*$/i;
+  const multOf = (el) => Number(el.textContent.match(MULT_TEXT)?.[1].replace(/,/g, ""));
   let stripEl = null;
   let lastSeq = null; // multipliers in page order
+  let stripGame = null; // game the strip was read on (reset when the page changes game)
 
   function stripItems() {
     if (stripEl?.isConnected) {
@@ -172,8 +182,9 @@ if (!window.__bcCrashHashContent) {
   function watchStrip() { stripItems(); }
 
   // How many new values were added at the front (or back) of `now` compared with `before`.
+  // Up to 20 at once, so fast Limbo autobets are not missed.
   function shift(now, before, atFront) {
-    for (let k = 1; k <= 5; k++) {
+    for (let k = 1; k <= 20; k++) {
       const L = Math.min(now.length - k, before.length);
       if (L < 4) break;
       let same = true;
@@ -186,19 +197,26 @@ if (!window.__bcCrashHashContent) {
   }
 
   function checkStrip() {
+    const g = game();
+    if (g !== stripGame) { stripGame = g; stripEl = null; lastSeq = null; }
+    if (!g) return;
     const items = stripItems();
     if (items.length < 5) return;
-    const seq = items.map((el) => Number(el.textContent.match(MULT_TEXT)?.[1]));
+    const seq = items.map(multOf);
     if (seq.some((v) => !(v >= 1))) return;
     const before = lastSeq;
     lastSeq = seq;
     if (!before || before.join() === seq.join()) return;
     const front = shift(seq, before, true), back = shift(seq, before, false);
     let added = [];
-    if (front && (!back || newestEnd === "first")) { saveEnd("first"); added = seq.slice(0, front).reverse(); }
+    if (front && (!back || ends[g] === "first")) { saveEnd("first"); added = seq.slice(0, front).reverse(); }
     else if (back) { saveEnd("last"); added = seq.slice(seq.length - back); }
     if (added.length) {
-      try { chrome.runtime.sendMessage({ type: "stripRounds", crashes: added }); } catch {} // oldest first
+      // oldest first
+      try {
+        if (g === "limbo") chrome.runtime.sendMessage({ type: "limboResults", results: added });
+        else chrome.runtime.sendMessage({ type: "stripRounds", crashes: added });
+      } catch {}
     }
   }
 
@@ -318,7 +336,7 @@ if (!window.__bcCrashHashContent) {
 
   let busy = false;
   async function getLatest() {
-    const debug = { url: location.href, pageHashes: stats.pageHashes, historyItems: 0, newestEnd, tried: [] };
+    const debug = { url: location.href, pageHashes: stats.pageHashes, historyItems: 0, newestEnd: ends.crash, tried: [] };
     if (busy) return { ok: false, debug, error: "Already reading a round, try again in a moment." };
     busy = true;
     try {
@@ -337,8 +355,8 @@ if (!window.__bcCrashHashContent) {
       watchStrip();
 
       const first = items[0], last = items[items.length - 1];
-      if (newestEnd) {
-        const r = await openRead(newestEnd === "first" ? first : last, debug);
+      if (ends.crash) {
+        const r = await openRead(ends.crash === "first" ? first : last, debug);
         if (!r) return { ok: false, debug, error: "Clicked the newest result, but no Round ID / Hash box appeared." };
         return { ok: true, round: r.round, debug, warning: r.closed ? "" : "bc.game's round box didn't close automatically — please close it by hand." };
       }
@@ -351,7 +369,7 @@ if (!window.__bcCrashHashContent) {
       if (!a && !b) return { ok: false, debug, error: "Clicked the result strip, but no Round ID / Hash box appeared." };
       if (a && b) saveEnd(a.round.roundId >= b.round.roundId ? "first" : "last");
       const best = !b || (a && a.round.roundId >= b.round.roundId) ? a : b;
-      return { ok: true, round: best.round, debug: { ...debug, newestEnd } };
+      return { ok: true, round: best.round, debug: { ...debug, newestEnd: ends.crash } };
     } finally {
       busy = false;
     }

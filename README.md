@@ -41,6 +41,12 @@ If the panel can't read the round, it says what it found on the page.
 
 **Past results don't predict the next round.** Over 1,000,000 real rounds every payout point returns about −1%, and no betting rule tested beat chance.
 
+### Limbo
+On https://bc.game/game/limbo the same panel shows your own Limbo results (title **BC Watchdog · Limbo**).
+- Limbo results are your own bets, not shared rounds, so there is no earlier history to calculate. The panel tracks every result that appears in the page's recent-results row while the page is open, including fast autobets, and keeps up to 100,000.
+- Same trend board (split at 2×) and stats table (any number of bets, any payout point). Hover a ball for its bet number.
+- **Clear** forgets the tracked results. Crash and Limbo keep separate settings for rounds and payout.
+
 ## Website (`site/`)
 
 The bcwatchdog.com landing page: features, install guide, FAQ and privacy policy. `npm run build` compiles the server and packs `extension/` into `site/download/bc-watchdog.zip` for the download button.

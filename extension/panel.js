@@ -1,10 +1,14 @@
-// The panel shown inside the bc.game crash page (loaded in an iframe by overlay.js).
+// The panel shown inside the bc.game Crash or Limbo page (loaded in an iframe by overlay.js).
+// Crash: rounds from the hash chain (up to 100,000) plus new ones from the page.
+// Limbo: the user's own results, read from the page while it is open (up to 100,000).
 import { MAX_COUNT, DEFAULT_COUNT, COUNTS, POINTS, analyze } from "./analysis.js";
 import { TREND_CSS, createTrendPanel } from "./trend.js";
 import { Chain } from "./chain.js";
 import { updateFromTab } from "./latest.js";
 
 const $ = (id) => document.getElementById(id);
+const GAME = new URLSearchParams(location.search).get("game") === "limbo" ? "limbo" : "crash";
+const LIMBO = GAME === "limbo";
 const fmt = (x) => x.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "×";
 const num = (n) => n.toLocaleString();
 const tone = (x) => (x <= 1 ? "bust" : x < 2 ? "lo" : x >= 100 ? "huge" : x >= 10 ? "bg" : "hi");
@@ -17,16 +21,18 @@ const postHeight = () => parent.postMessage({ __bcTrendPanel: "height", h: docum
 new ResizeObserver(postHeight).observe(document.querySelector("main"));
 
 // ---- Settings (remembered) ----
+const SETTINGS_KEY = LIMBO ? "trend-panel-limbo" : "trend-panel";
 let settings = { count: DEFAULT_COUNT, point: 2 };
-try { Object.assign(settings, JSON.parse(localStorage.getItem("trend-panel") || "{}")); } catch {}
+try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}")); } catch {}
 const clampCount = (n) => Math.max(10, Math.min(MAX_COUNT, Math.round(n) || DEFAULT_COUNT));
 settings.count = clampCount(settings.count);
 if (!(settings.point > 1)) settings.point = 2;
-const save = () => { try { localStorage.setItem("trend-panel", JSON.stringify(settings)); } catch {} };
+const save = () => { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch {} };
 
 // ---- Data: unconfirmed rounds from the page strip + the hash chain, newest first ----
 let latest = null;
 let pending = [];
+let limbo = []; // Limbo results, oldest first
 const chain = new Chain();
 let data = new Float64Array(0);
 let progress = "";
@@ -34,6 +40,12 @@ let progress = "";
 const roundId = (i) => (chain.latest?.roundId != null ? chain.latest.roundId + pending.length - i : null);
 
 function rebuild() {
+  if (LIMBO) {
+    const L = limbo.length, total = Math.min(settings.count, L);
+    data = new Float64Array(total);
+    for (let i = 0; i < total; i++) data[i] = limbo[L - 1 - i];
+    return;
+  }
   const base = chain.crashes, p = pending.length;
   const total = Math.min(settings.count, base.length + p);
   data = new Float64Array(total);
@@ -103,14 +115,17 @@ function render() {
   const n = data.length;
   if (!n) {
     $("anBody").innerHTML = "";
-    $("note").textContent = progress || "No rounds yet.";
+    $("note").textContent = LIMBO ? "No Limbo results yet. Place a bet: each result is added here." : progress || "No rounds yet.";
   } else {
     $("anBody").innerHTML = analyze(data, n, point).sides.map((s) =>
       `<tr><td class="${s.cls}">${s.label}</td><td>${s.chance.toFixed(2)}%</td><td>${num(s.count)}</td><td>${s.maxCombo}</td></tr>`).join("");
-    $("note").textContent = n < count ? progress || `Only ${num(n)} rounds calculated so far.` : "";
+    $("note").textContent = LIMBO
+      ? (n < count ? `${num(n)} of ${num(count)} bets tracked so far.` : "")
+      : n < count ? progress || `Only ${num(n)} rounds calculated so far.` : "";
   }
   // The trend always uses 2× (like bc.game), whatever payout the table uses.
-  trend.render({ crashes: data, n, point: 2, big: 10, roundId });
+  trend.render({ crashes: data, n, point: 2, big: 10, roundId,
+    label: LIMBO ? (i) => `Bet ${num(limbo.length - i)}` : null });
 }
 
 // ---- Controls ----
@@ -134,7 +149,7 @@ $("chips").onclick = (e) => {
 };
 
 function extend() {
-  if (!chain.latest) return;
+  if (LIMBO || !chain.latest) return;
   chain.extendTo(settings.count, (done, total) => {
     progress = done < total ? `Calculating ${num(done)} / ${num(total)}…` : "";
     $("note").textContent = progress;
@@ -148,6 +163,14 @@ const ago = (t) => {
 };
 
 function showLatest() {
+  if (LIMBO) {
+    $("main").hidden = false;
+    const n = limbo.length, x = limbo[n - 1];
+    $("roundLine").innerHTML = n
+      ? `<span class="muted">Limbo · tracked</span> <b>${num(n)}</b> <span class="muted">bets</span> <span class="crash ${tone(x)}">${fmt(x)}</span>`
+      : `<span class="empty">Limbo: place a bet to start tracking.</span>`;
+    return;
+  }
   $("main").hidden = !latest;
   if (!latest) {
     $("roundLine").innerHTML = `<span class="empty">No round yet. Click <b>Refresh</b>.</span>`;
@@ -162,6 +185,14 @@ function showLatest() {
 
 let lastUpdate = 0;
 async function load() {
+  if (LIMBO) {
+    ({ limbo = [] } = await chrome.storage.local.get("limbo"));
+    showLatest();
+    render();
+    lastUpdate = Date.now();
+    setLive();
+    return;
+  }
   ({ latest = null, pending = [] } = await chrome.storage.local.get(["latest", "pending"]));
   chain.setLatest(latest);
   if (!latest) pending = [];
@@ -174,15 +205,17 @@ async function load() {
 
 let loadQueued = false;
 chrome.storage.onChanged.addListener((changes) => {
-  if ((!changes.latest && !changes.pending) || loadQueued) return;
+  const mine = LIMBO ? changes.limbo : changes.latest || changes.pending;
+  if (!mine || loadQueued) return;
   loadQueued = true;
   setTimeout(() => { loadQueued = false; load(); }, 50);
 });
 
 function setLive() {
   const s = Math.round((Date.now() - lastUpdate) / 1000);
-  $("live").className = "live" + (latest && s < 60 ? " on" : "");
-  $("live").textContent = latest ? (s < 60 ? "● Live" : `updated ${ago(lastUpdate)}`) : "";
+  const has = LIMBO ? limbo.length > 0 : latest;
+  $("live").className = "live" + (has && s < 60 ? " on" : "");
+  $("live").textContent = has ? (s < 60 ? "● Live" : `updated ${ago(lastUpdate)}`) : "";
 }
 setInterval(setLive, 5000);
 
@@ -202,6 +235,17 @@ async function autoUpdate() {
 }
 $("refresh").onclick = autoUpdate;
 
+// Limbo: no hash chain to read, so no Refresh; Clear forgets the tracked results.
+if (LIMBO) {
+  $("refresh").hidden = true;
+  $("clear").hidden = false;
+  $("unit").textContent = "bets, payout <";
+  $("clear").onclick = async () => {
+    if (!confirm("Forget all tracked Limbo results?")) return;
+    await chrome.runtime.sendMessage({ type: "clearLimbo" });
+  };
+}
+
 {
   const { trendStyle } = await chrome.storage.local.get("trendStyle");
   if (trendStyle) look = { ...structuredClone(STYLE_DEFAULT), ...trendStyle, colors: { ...STYLE_DEFAULT.colors, ...trendStyle.colors } };
@@ -210,4 +254,4 @@ $("refresh").onclick = autoUpdate;
 await load();
 // Clicking bc.game's round box on every page load would be distracting: only do it
 // when nothing is saved yet or the saved round is old. New rounds arrive on their own.
-if (!latest || Date.now() - latest.seenAt > 10 * 60 * 1000) autoUpdate();
+if (!LIMBO && (!latest || Date.now() - latest.seenAt > 10 * 60 * 1000)) autoUpdate();

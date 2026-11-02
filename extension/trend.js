@@ -155,7 +155,8 @@ export function createTrendPanel(root, { rows = 10, cols: visibleCols = 30, cell
     const i = L && c >= 0 && c < L.cols && r >= 0 && r < rows ? cellAt[c * rows + r] : -1;
     if (i < 0) { $tip.hidden = true; return; }
     const id = state.roundId(i);
-    $tip.textContent = `${id != null ? "Round " + id + " · " : ""}${fmt(state.crashes[i])}`;
+    const label = state.label ? state.label(i) : id != null ? "Round " + id : null;
+    $tip.textContent = `${label != null ? label + " · " : ""}${fmt(state.crashes[i])}`;
     $tip.hidden = false;
     $tip.style.left = Math.max(0, Math.min(x + 10, rect.width - 150)) + "px";
     $tip.style.top = Math.max(0, y - 26) + "px";
