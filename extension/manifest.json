@@ -2,7 +2,13 @@
   "manifest_version": 3,
   "name": "BC Watchdog",
   "version": "1.0.5",
-  "description": "Live bc.game Crash trend balls and stats from the provably-fair hash chain, shown inside the crash page.",
+  "description": "See up to 100,000 BC.Game Crash rounds, far past the 2,000 limit: trend balls, stats and streaks inside the crash page.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
   "permissions": [
     "storage",
     "scripting"
@@ -16,7 +22,11 @@
     "type": "module"
   },
   "action": {
-    "default_title": "BC Watchdog"
+    "default_title": "BC Watchdog",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png"
+    }
   },
   "content_scripts": [
     {

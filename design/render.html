@@ -1,0 +1,4 @@
+<html><body><pre id="o"></pre><script>
+const jobs=[["icon.svg",128],["icon.svg",48],["icon-small.svg",32],["icon-small.svg",16],["icon.svg",512]];
+(async()=>{const out=[];for(const [f,s] of jobs){const img=new Image();img.src=f;await img.decode();const c=document.createElement("canvas");c.width=c.height=s;const x=c.getContext("2d");x.imageSmoothingQuality="high";x.drawImage(img,0,0,s,s);out.push(s+" "+c.toDataURL("image/png"));}document.getElementById("o").textContent=out.join("\n");})();
+</script>

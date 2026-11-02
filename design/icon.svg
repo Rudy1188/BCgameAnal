@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1e252d"/><stop offset="1" stop-color="#0b0d10"/></linearGradient>
+    <linearGradient id="fur" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5cf7ab"/><stop offset="1" stop-color="#17c46d"/></linearGradient>
+    <radialGradient id="glow" cx=".5" cy=".42" r=".5"><stop offset="0" stop-color="#24ee89" stop-opacity=".28"/><stop offset="1" stop-color="#24ee89" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect x="4" y="4" width="120" height="120" rx="28" fill="url(#bg)"/>
+  <rect x="4.5" y="4.5" width="119" height="119" rx="27.5" fill="none" stroke="#fff" stroke-opacity=".08"/>
+  <circle cx="64" cy="56" r="50" fill="url(#glow)"/>
+  <!-- ears, angled outwards -->
+  <path d="M38 50 L22 14 Q20 10 25 12 L58 32 Z" fill="#17c46d"/>
+  <path d="M90 50 L106 14 Q108 10 103 12 L70 32 Z" fill="#17c46d"/>
+  <path d="M38 44 L28 21 L50 34 Z" fill="#0d3d25"/>
+  <path d="M90 44 L100 21 L78 34 Z" fill="#0d3d25"/>
+  <!-- head with long muzzle -->
+  <path d="M64 26 C84 26 98 36 98 54 C98 66 92 72 86 78 C82 82 80 92 74 98 C70 102 58 102 54 98 C48 92 46 82 42 78 C36 72 30 66 30 54 C30 36 44 26 64 26 Z" fill="url(#fur)"/>
+  <!-- muzzle highlight -->
+  <path d="M64 58 C74 58 80 70 80 82 C78 92 72 98 64 98 C56 98 50 92 48 82 C48 70 54 58 64 58 Z" fill="#b8ffd9" fill-opacity=".35"/>
+  <!-- eyes -->
+  <ellipse cx="49" cy="54" rx="6" ry="6.5" fill="#0b0d10"/>
+  <ellipse cx="79" cy="54" rx="6" ry="6.5" fill="#0b0d10"/>
+  <circle cx="51" cy="52" r="2" fill="#fff"/>
+  <circle cx="81" cy="52" r="2" fill="#fff"/>
+  <!-- brows: alert, watching -->
+  <path d="M41 44 L55 47" stroke="#0d3d25" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M87 44 L73 47" stroke="#0d3d25" stroke-width="3.5" stroke-linecap="round"/>
+  <!-- nose -->
+  <path d="M55 78 Q64 73 73 78 Q72 86 64 89 Q56 86 55 78 Z" fill="#0b0d10"/>
+  <ellipse cx="61" cy="78.5" rx="2.6" ry="1.4" fill="#fff" fill-opacity=".5"/>
+  <!-- collar of trend balls -->
+  <path d="M34 104 Q64 118 94 104" stroke="#2b2f33" stroke-width="12" fill="none" stroke-linecap="round"/>
+  <circle cx="40" cy="106" r="4.4" fill="#ffad4d"/>
+  <circle cx="52" cy="110" r="4.4" fill="#24ee89"/>
+  <circle cx="64" cy="111.5" r="4.4" fill="#f0443b"/>
+  <circle cx="76" cy="110" r="4.4" fill="#ebf005"/>
+  <circle cx="88" cy="106" r="4.4" fill="#ffffff"/>
+</svg>

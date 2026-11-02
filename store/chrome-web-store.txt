@@ -1,0 +1,109 @@
+BC WATCHDOG – CHROME WEB STORE LISTING
+======================================
+
+NAME
+BC Watchdog
+
+SUMMARY (from manifest, 119/132 characters)
+See up to 100,000 BC.Game Crash rounds, far past the 2,000 limit: trend balls, stats and streaks inside the crash page.
+
+CATEGORY
+Tools
+
+LANGUAGE
+English
+
+WEBSITE
+https://bcwatchdog.com
+
+PRIVACY POLICY URL
+https://bcwatchdog.com/privacy
+
+SUPPORT EMAIL
+support@bcwatchdog.com
+
+
+DESCRIPTION (copy everything between the lines)
+------------------------------------------------------------
+🐾 Your watchdog for BC.Game Crash. It never blinks.
+
+BC.Game only lets you look back 2,000 rounds. BC Watchdog lets you look back 100,000.
+
+It adds a live panel right inside the Crash page with the trend board you already know, a stats table you can bend any way you like, and a history 50 times deeper than the game shows you. Every round lands on the board the moment it ends.
+
+━━━━━━━━━━━━━━━━━━━━
+🔍 SEE PAST THE 2,000-ROUND LIMIT
+━━━━━━━━━━━━━━━━━━━━
+Scroll back through up to 100,000 rounds. BC Watchdog takes the latest round's hash and walks back through BC.Game's provably-fair hash chain, so every older round and its crash point is recalculated, and nothing is missing.
+
+━━━━━━━━━━━━━━━━━━━━
+🟢 TREND BOARD, THE WAY YOU READ IT
+━━━━━━━━━━━━━━━━━━━━
+Same style as BC.Game's own trend: each streak fills a column, and long streaks turn along the bottom row. Hover any ball to see its round ID and crash point.
+
+🔴 1.00× instant crash
+🟠 below 2×
+🟢 2× and up
+🟡 10× and up
+⚪ 100× and up
+
+━━━━━━━━━━━━━━━━━━━━
+📊 STATS ON ANY RANGE
+━━━━━━━━━━━━━━━━━━━━
+"Last 2,000 rounds, payout < 2"? Sure. Or the last 50,000 rounds at 3.5×. Pick any number of rounds from 10 to 100,000 and any payout point to see:
+• Chance – how often each side hit
+• Count – how many rounds
+• Max Combo – the longest streak in a row
+
+━━━━━━━━━━━━━━━━━━━━
+🎨 MAKE IT YOURS
+━━━━━━━━━━━━━━━━━━━━
+• Drag, resize, minimise or hide the panel. It remembers where you left it.
+• Choose the rows, columns, cell size and ball size.
+• Recolour every ball, cell and background.
+• See the latest result on the toolbar badge.
+
+━━━━━━━━━━━━━━━━━━━━
+🔒 PRIVATE BY DESIGN
+━━━━━━━━━━━━━━━━━━━━
+• Runs 100% in your browser
+• No account, no sign-up, no tracking
+• Sends no data to us or anyone else
+• Runs only on bc.game
+
+━━━━━━━━━━━━━━━━━━━━
+🚀 HOW TO USE
+━━━━━━━━━━━━━━━━━━━━
+1. Install BC Watchdog and pin it to your toolbar.
+2. Open bc.game/game/crash.
+3. The panel appears on the right. Click the icon to show or hide it.
+
+━━━━━━━━━━━━━━━━━━━━
+⚠️ GOOD TO KNOW
+━━━━━━━━━━━━━━━━━━━━
+BC Watchdog shows you what happened. It doesn't tell you what will happen. Crash results come from a hash that isn't known until the round ends, so past rounds can't predict the next one. Use it to understand the game, not to chase it.
+
+BC Watchdog is an independent tool. It isn't affiliated with or endorsed by BC.Game. For players 18+ only. Play responsibly.
+
+🌐 bcwatchdog.com
+------------------------------------------------------------
+
+
+PRIVACY PRACTICES TAB (suggested answers)
+------------------------------------------------------------
+Single purpose:
+Shows a trend board and statistics for BC.Game Crash rounds inside the bc.game crash page, with up to 100,000 rounds of history.
+
+Permission justification – storage:
+Saves round history and the user's panel settings (size, position, colours) locally on the device.
+
+Permission justification – scripting:
+Injects the trend panel into the bc.game crash page.
+
+Host permission justification (bc.game):
+Reads Crash round results (round ID, hash, crash point) from the bc.game page to draw the trend board and stats. Runs on no other sites.
+
+Remote code: No, I am not using remote code.
+
+Data usage: tick nothing (no user data is collected). Certify all three statements.
+------------------------------------------------------------
