@@ -1,15 +1,16 @@
 {
   "name": "bcproject",
   "version": "1.0.0",
-  "description": "",
+  "description": "BC Watchdog: Chrome extension for BC.Game Crash and its website (bcwatchdog.com)",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tsc",
+    "build": "tsc && node scripts/zip-extension.mjs",
     "start": "node dist/server.js",
     "dev": "tsx watch src/server.ts",
     "calc": "tsx src/cli.ts",
-    "report": "node scripts/report.mjs"
+    "report": "node scripts/report.mjs",
+    "zip": "node scripts/zip-extension.mjs"
   },
   "keywords": [],
   "author": "",

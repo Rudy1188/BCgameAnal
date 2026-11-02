@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BC Watchdog – Crash trend &amp; stats extension for BC.Game</title>
+<meta name="description" content="BC Watchdog is a free Chrome extension that shows a live trend board and stats table right inside the BC.Game Crash page, with up to 100,000 rounds of history from the provably-fair hash chain.">
+<link rel="canonical" href="https://bcwatchdog.com/">
+<link rel="icon" href="/logo.svg" type="image/svg+xml">
+<meta name="theme-color" content="#0d0f12">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://bcwatchdog.com/">
+<meta property="og:title" content="BC Watchdog – Crash trend & stats for BC.Game">
+<meta property="og:description" content="A live trend board and stats table inside the BC.Game Crash page. Free Chrome extension.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="/"><img src="/logo.svg" alt="">BC <span>Watchdog</span></a>
+    <nav class="nav">
+      <a href="#features">Features</a>
+      <a href="#colours">Colours</a>
+      <a href="#install">Install</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <a class="btn btn-primary btn-sm" href="#install">Get the extension</a>
+  </div>
+</header>
+
+<main>
+  <div class="hero">
+    <div class="wrap">
+      <div>
+        <div class="pill"><i></i>Free Chrome extension for BC.Game Crash</div>
+        <h1>Watch every round. <em>Right in the game.</em></h1>
+        <p class="lead">BC Watchdog adds a live trend board and stats table to the BC.Game Crash page, with up to 100,000 rounds of history checked against the provably-fair hash chain.</p>
+        <div class="cta">
+          <a class="btn btn-primary" href="/download/bc-watchdog.zip" download>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 21h16"/></svg>
+            Download for Chrome
+          </a>
+          <a class="btn btn-ghost" href="#features">See what it does</a>
+        </div>
+        <p class="fine">Works in Chrome, Edge, Brave and other Chromium browsers. No account, no sign-up.</p>
+      </div>
+
+      <div class="demo" aria-label="Preview of the BC Watchdog panel">
+        <div class="demo-bar"><img src="/logo.svg" alt="">BC Watchdog<span class="x"><span>⚙</span><span>–</span><span>×</span></span></div>
+        <div class="demo-body">
+          <div class="board" id="board"></div>
+          <div class="demo-row">
+            <span>Last <strong id="n">2000</strong> rounds · payout &lt; <strong>2</strong></span>
+            <span>Latest <span class="last" id="last">–</span></span>
+          </div>
+          <table>
+            <thead><tr><th>Range</th><th>Chance</th><th>Count</th><th>Max Combo</th></tr></thead>
+            <tbody>
+              <tr><td style="color:var(--low)">[1, 2)</td><td id="lo-p">–</td><td id="lo-c">–</td><td id="lo-m">–</td></tr>
+              <tr><td style="color:var(--high)">[2, ∞)</td><td id="hi-p">–</td><td id="hi-c">–</td><td id="hi-m">–</td></tr>
+            </tbody>
+          </table>
+          <div class="demo-note">Demo with sample rounds</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <section id="features" class="alt">
+    <div class="wrap">
+      <p class="eyebrow">Features</p>
+      <h2>Everything you check, in one panel</h2>
+      <p class="sec-lead">No more scrolling through the history tab. BC Watchdog sits on the Crash page and updates the moment a round ends.</p>
+      <div class="grid3">
+        <div class="card">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg></div>
+          <h3>Trend board</h3>
+          <p>The same trend balls you know from BC.Game: each streak fills a column, long streaks turn along the bottom row. Hover any ball to see its round ID and crash point.</p>
+        </div>
+        <div class="card">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg></div>
+          <h3>Stats table</h3>
+          <p>Pick any number of rounds and any payout point. See the chance, count and longest streak (Max Combo) on each side.</p>
+        </div>
+        <div class="card">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 2"/><circle cx="12" cy="12" r="9"/></svg></div>
+          <h3>100,000 rounds of history</h3>
+          <p>Scroll back through up to 100,000 rounds. Older rounds are worked out from the latest hash, so the history is complete.</p>
+        </div>
+        <div class="card">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg></div>
+          <h3>Provably-fair check</h3>
+          <p>Every crash point comes from BC.Game's published hash chain and salt, the same formula you can verify yourself.</p>
+        </div>
+        <div class="card">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg></div>
+          <h3>Make it yours</h3>
+          <p>Change rows, columns, cell and ball size, and every colour. Drag, resize or minimise the panel. It remembers where you left it.</p>
+        </div>
+        <div class="card">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
+          <h3>Private by design</h3>
+          <p>Runs entirely in your browser. No account, no tracking, and nothing is sent to our servers or anyone else's.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="colours">
+    <div class="wrap">
+      <p class="eyebrow">Reading the board</p>
+      <h2>Five colours, one glance</h2>
+      <p class="sec-lead">The board splits at 2×, like BC.Game. Big results get their own colour so they stand out. You can change any colour in settings.</p>
+      <div class="legend">
+        <div><i style="--k:var(--bust)"></i><p><b>1.00×</b><span>Instant crash</span></p></div>
+        <div><i style="--k:var(--low)"></i><p><b>Below 2×</b><span>Low side</span></p></div>
+        <div><i style="--k:var(--high)"></i><p><b>2× and up</b><span>High side</span></p></div>
+        <div><i style="--k:var(--big)"></i><p><b>10× and up</b><span>Big result</span></p></div>
+        <div><i style="--k:var(--huge)"></i><p><b>100× and up</b><span>Huge result</span></p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="install" class="alt">
+    <div class="wrap">
+      <p class="eyebrow">Install</p>
+      <h2>Set up in under a minute</h2>
+      <p class="sec-lead">Download the extension, load it into Chrome, and open the Crash page.</p>
+      <ol class="steps">
+        <li><b>Download and unzip</b><p><a href="/download/bc-watchdog.zip" download>bc-watchdog.zip</a>, then unzip it to a folder you'll keep.</p></li>
+        <li><b>Open extensions</b><p>Go to <code>chrome://extensions</code> and turn on <b>Developer mode</b> (top right).</p></li>
+        <li><b>Load it</b><p>Click <b>Load unpacked</b> and pick the unzipped folder. Pin BC Watchdog to your toolbar.</p></li>
+        <li><b>Play</b><p>Open <a href="https://bc.game/game/crash" target="_blank" rel="noopener">bc.game/game/crash</a>. The panel appears on the right.</p></li>
+      </ol>
+    </div>
+  </section>
+
+  <section id="faq">
+    <div class="wrap">
+      <p class="eyebrow">FAQ</p>
+      <h2>Questions</h2>
+      <div class="faq">
+        <details><summary>Is BC Watchdog free?</summary><p>Yes. It's free to download and use.</p></details>
+        <details><summary>Can it predict the next round?</summary><p>No. Each crash point comes from a hash that isn't known until the round ends, so past results don't predict the next one. BC Watchdog shows you what happened clearly; it doesn't tell you what will happen. Over 1,000,000 real rounds, every payout point returned about −1%, which is the house edge.</p></details>
+        <details><summary>How does it get 100,000 rounds of history?</summary><p>BC.Game's crash results form a hash chain: each round's hash is the SHA-256 of the next one. From the latest round's hash, the extension works backwards through every earlier round and calculates its crash point with the published salt.</p></details>
+        <details><summary>Does it collect my data?</summary><p>No. Settings and round history are stored in your browser only. The extension doesn't talk to any server except the BC.Game page you already have open. See the <a href="/privacy">privacy policy</a>.</p></details>
+        <details><summary>Which browsers does it work in?</summary><p>Google Chrome and other Chromium browsers such as Microsoft Edge, Brave and Opera.</p></details>
+        <details><summary>Is it made by BC.Game?</summary><p>No. BC Watchdog is an independent tool and isn't affiliated with or endorsed by BC.Game.</p></details>
+        <details><summary>The panel doesn't show up. What do I do?</summary><p>Reload the Crash tab after installing or updating the extension. Click the BC Watchdog icon in the toolbar to show or hide the panel. If it can't read a round, the panel says what it found on the page.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <section class="final">
+    <div class="wrap">
+      <div class="card">
+        <h2>Keep an eye on every round</h2>
+        <p>Free, private, and ready in under a minute.</p>
+        <div class="cta">
+          <a class="btn btn-primary" href="/download/bc-watchdog.zip" download>Download for Chrome</a>
+          <a class="btn btn-ghost" href="#install">How to install</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <a class="brand" href="/"><img src="/logo.svg" alt="">BC <span>Watchdog</span></a>
+    <nav>
+      <a href="#features">Features</a>
+      <a href="#install">Install</a>
+      <a href="#faq">FAQ</a>
+      <a href="/privacy">Privacy</a>
+    </nav>
+    <p class="disclaimer">© <span id="y">2026</span> BC Watchdog. Not affiliated with BC.Game. For players 18+ only. Gambling involves risk; past results don't predict future rounds. Play responsibly and only with money you can afford to lose.</p>
+  </div>
+</footer>
+
+<script src="/site.js" defer></script>
+</body>
+</html>

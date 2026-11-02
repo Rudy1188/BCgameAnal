@@ -1,15 +1,17 @@
-# BCgameAnal
+# BC Watchdog
+
+Website: https://bcwatchdog.com
 
 Tools for BC.Game Crash's provably-fair hashes: get the latest round's hash, salt and round ID, then calculate every earlier round's hash and crash point.
 
 ## Chrome extension (`extension/`)
 
-**BC Crash Trend**: a panel inside the bc.game crash page with the trend balls and a stats table, updated every round.
+**BC Watchdog**: a panel inside the bc.game crash page with the trend balls and a stats table, updated every round.
 
 ### Install
 1. Open `chrome://extensions` and turn on **Developer mode** (top right).
 2. Click **Load unpacked** and pick the `extension` folder (or click the reload icon if it is already installed).
-3. Pin **BC Crash Trend** to the toolbar.
+3. Pin **BC Watchdog** to the toolbar.
 
 ### Use
 1. Open https://bc.game/game/crash (reload the tab after installing or updating the extension). The panel appears on the right side of the page.
@@ -38,6 +40,15 @@ Tools for BC.Game Crash's provably-fair hashes: get the latest round's hash, sal
 If the panel can't read the round, it says what it found on the page.
 
 **Past results don't predict the next round.** Over 1,000,000 real rounds every payout point returns about −1%, and no betting rule tested beat chance.
+
+## Website (`site/`)
+
+The bcwatchdog.com landing page: features, install guide, FAQ and privacy policy. `npm run build` compiles the server and packs `extension/` into `site/download/bc-watchdog.zip` for the download button.
+
+```
+npm run build
+PORT=3200 npm start      # serves the site; /calculator keeps the old hash calculator
+```
 
 ## Node calculator (`src/`, `public/`)
 

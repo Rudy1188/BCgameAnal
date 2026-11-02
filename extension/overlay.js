@@ -33,7 +33,7 @@ if (!window.__bcTrendOverlay) {
         .box.collapsed { resize:none; }
       </style>
       <div class="box">
-        <div class="head"><b>BC Crash Trend</b><button class="min" title="Minimise">\u2013</button><button class="close" title="Close (click the extension icon to show again)">\u00d7</button></div>
+        <div class="head"><b>BC Watchdog</b><button class="min" title="Minimise">\u2013</button><button class="close" title="Close (click the extension icon to show again)">\u00d7</button></div>
         <iframe allow="clipboard-write"></iframe>
       </div>`;
     box = root.querySelector(".box");
