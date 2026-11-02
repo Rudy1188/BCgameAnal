@@ -2,3 +2,4 @@ node_modules/
 dist/
 .env
 site/download/
+store/*.zip
