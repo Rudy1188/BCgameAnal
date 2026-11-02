@@ -1,0 +1,61 @@
+<html><body style="margin:0;background:#333"><canvas id="c" width="880" height="560" style="width:440px;height:280px"></canvas><pre id="o"></pre><script>
+// Small promo tile, 440x280. Drawn at 2x then scaled down for sharp edges.
+(async () => {
+  for (const [w, f] of [[600, "fonts/inter-600.ttf"], [800, "fonts/inter-800.ttf"]]) {
+    const ff = new FontFace("Inter", `url(${f})`, { weight: String(w) }); await ff.load(); document.fonts.add(ff);
+  }
+  const icon = new Image(); icon.src = "icon.svg"; await icon.decode();
+  const big = document.getElementById("c"), x = big.getContext("2d");
+  x.scale(2, 2);
+  const W = 440, H = 280;
+  const C = { bust: "#f0443b", low: "#ffad4d", high: "#24ee89", big: "#ebf005", huge: "#ffffff", cell: "#1f2226", layer: "#2b2f33", muted: "#8b929e", text: "#e9ebef" };
+
+  // background
+  let g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, "#161b21"); g.addColorStop(1, "#0b0d10");
+  x.fillStyle = g; x.fillRect(0, 0, W, H);
+  g = x.createRadialGradient(70, 60, 0, 70, 60, 200); g.addColorStop(0, "rgba(36,238,137,.16)"); g.addColorStop(1, "rgba(36,238,137,0)");
+  x.fillStyle = g; x.fillRect(0, 0, W, H);
+
+  // brand row
+  x.drawImage(icon, 18, 20, 64, 64);
+  x.textBaseline = "alphabetic";
+  x.font = "800 24px Inter"; x.fillStyle = C.text; x.fillText("BC", 86, 60);
+  const bcW = x.measureText("BC ").width; x.fillStyle = C.high; x.fillText("Watchdog", 86 + bcW, 60);
+
+  // headline
+  x.font = "800 28px Inter"; x.fillStyle = C.text; x.fillText("100,000 rounds.", 24, 136);
+  x.fillStyle = C.high; x.fillText("Not just 2,000.", 24, 172);
+  x.font = "600 13px Inter"; x.fillStyle = C.muted;
+  x.fillText("Live trend balls, stats & streaks", 24, 204);
+  x.fillText("right inside BC.Game Crash.", 24, 222);
+
+  // colour chips
+  [C.bust, C.low, C.high, C.big, C.huge].forEach((col, i) => {
+    x.beginPath(); x.arc(32 + i * 20, 250, 6, 0, 7); x.fillStyle = col; x.fill();
+  });
+
+  // trend board panel
+  const px = 280, py = 22, pw = 142, ph = 236;
+  rr(px, py, pw, ph, 12); x.fillStyle = C.layer; x.fill();
+  x.strokeStyle = "#3a4047"; x.lineWidth = 1; x.stroke();
+  const cols = 7, rows = 12, cs = 15, gap = 3;
+  const bx = px + (pw - (cols * cs + (cols - 1) * gap)) / 2, by = py + (ph - (rows * cs + (rows - 1) * gap)) / 2;
+  // streaks per column: [kind list]
+  const streaks = [
+    ["low","low","bust","low"], ["high","big","high"], ["low"], ["high","high","high","high","huge","high","high"],
+    ["low","low","low","bust","low","low","low","low","low"], ["high","big"], ["low","bust","low"]
+  ];
+  for (let c = 0; c < cols; c++) for (let r = 0; r < rows; r++) {
+    const cx = bx + c * (cs + gap), cy = by + r * (cs + gap);
+    rr(cx, cy, cs, cs, 4); x.fillStyle = C.cell; x.fill();
+    const k = streaks[c]?.[r];
+    if (k) { x.beginPath(); x.arc(cx + cs / 2, cy + cs / 2, cs * .3, 0, 7); x.fillStyle = C[k]; x.fill(); }
+  }
+  function rr(a, b, w, h, r) { x.beginPath(); x.roundRect(a, b, w, h, r); }
+
+  // export exactly 440x280, no alpha (JPEG)
+  const out = document.createElement("canvas"); out.width = W; out.height = H;
+  const o = out.getContext("2d"); o.imageSmoothingQuality = "high"; o.drawImage(big, 0, 0, W, H);
+  document.getElementById("o").textContent = "TILE " + out.toDataURL("image/jpeg", 0.95);
+})();
+</script>
